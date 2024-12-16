@@ -1,0 +1,20 @@
+[project]
+name = "omerocrate"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Michael Milton", email = "ttmigueltt@gmail.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+    "ezomero>=3.1.0",
+    "rdflib>=7.1.1",
+]
+
+[project.scripts]
+omerocrate = "omerocrate:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
