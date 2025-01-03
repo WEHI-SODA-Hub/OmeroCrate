@@ -26,20 +26,39 @@ def upload_crate(crate: Path, connection: BlitzGateway):
         "crate": f"file://{crate}/",
         "schema": "http://schema.org/",
         # "omero": "http://schema.org/",
+        "omero": "http://www.openmicroscopy.org/Schemas/OME/2016-06/"
     }
 
     result = graph.query("""
         CONSTRUCT {
-            crate: a <http://www.openmicroscopy.org/Schemas/OME/2016-06/Dataset> ;
-            schema:name ?dataset_name ;
-            schema:hasPart ?file_id .
+            ?file_id a omero:Image ;
+                omero:pixels ?pixels_id .
+
+            ?pixels_id a omero:Pixels ;
+                omero:tiff_data ?tiff_data_id .
+            
+            ?tiff_data_id a omero:TiffData ;
+                omero:uuid ?uuid_id .
+                         
+            ?uuid_id a omero:UUID ;
+                omero:value ?uuid ;
+                omero:file_name ?file_name .
         }
         WHERE {
-            crate: schema:name ?dataset_name .
-            ?file_id a schema:MediaObject .
+            # Match all files that are TIFFs
+            ?file_id a schema:MediaObject ;
+                schema:encodingFormat ?img_format .
+
+            FILTER STRSTARTS(?img_format, "image/")
+
+            BIND(BNODE() AS ?pixels_id)
+            BIND(BNODE() AS ?uuid_id)
+            BIND(BNODE() AS ?tiff_data_id)
+            BIND(UUID() AS ?uuid)
+            BIND(STR(?file_id) AS ?file_name)
         }
     """, initNs=prefixes)
-    print(result.serialize(format="ttl").decode())
+    print(result.serialize(format="json-ld", context=prefixes, auto_compact=True).decode())
 
     for row in graph.query("""
         SELECT ?dataset_name

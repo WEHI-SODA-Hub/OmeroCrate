@@ -10,6 +10,7 @@ requires-python = ">=3.9"
 dependencies = [
     "ezomero>=3.1.0",
     "rdflib>=7.1.1",
+    "xsdata[lxml]>=24.12",
 ]
 
 [project.scripts]
