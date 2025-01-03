@@ -1,0 +1,3 @@
+[submodule "SodaMeta"]
+	path = SodaMeta
+	url = git@github.com:WEHI-SODA-Hub/SodaMeta.git
