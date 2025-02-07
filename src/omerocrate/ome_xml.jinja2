@@ -1,0 +1,51 @@
+{% set namespaces = {
+    "schema": "http://schema.org/",
+    "bioschemas_drafts": "https://discovery.biothings.io/view/bioschemastypesdrafts/",
+    "bioschemas": "https://discovery.biothings.io/view/bioschemastypes/"
+} %}
+
+<OME xmlns="http://www.openmicroscopy.org/Schemas/OME/2016-06" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openmicroscopy.org/Schemas/OME/2016-06/ome.xsd">
+    {% for row in graph.query('''
+        SELECT *
+        WHERE {
+            ?image_path a schema:ImageObject .
+            OPTIONAL { ?image_path schema:dateCreated ?image_date . }
+        }
+        ''', initNs=namespaces) 
+    %}
+    {% set tissue_query = list(graph.query('''
+        SELECT *
+        WHERE {
+            ?tissue_id a bioschemas_drafts:BioSample ;
+                schema:description ?tissue_description .
+
+            ?process_id a bioschemas_drafts:LabProcess ;
+                bioschemas:input ?tissue_id ;
+                schema:result ?image_path .
+        }
+    ''', initBindings = {
+        'image_path': row.image_path
+    }, initNs=namespaces)) %}
+    <Image Name="{{ row.image_path }}">
+        {% if row.image_date %}
+        <AcquisitionDate>{{ row.image_date }}</AcquisitionDate>
+        {% endif %}
+        <Pixels>
+            <TiffData>
+                <UUID FileName="{{ row.image_path }}"/>
+            </TiffData>
+        </Pixels>
+        {% for tissue in tissue_query %}
+        <AnnotationRef ID="{{ tissue.tissue_id }}"/>
+        {% endfor %}
+    </Image>
+    {% endfor %}
+    <StructuredAnnotations>
+        {% for tissue in tissue_query %}
+        <TagAnnotation ID="{{ tissue.tissue_id }}">
+            <Description>Sample tissue type</Description>
+            <Value>{{ tissue.tissue_description }}</Value>
+        </TagAnnotation>
+        {% endfor %}
+    </StructuredAnnotations>
+</OME>
