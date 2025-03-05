@@ -1,4 +1,4 @@
-from ome.ome import (
+from omerocrate.ome.ome import (
     AffineTransform,
     Annotation,
     AnnotationRef,

@@ -1,11 +1,16 @@
+import json
 from pathlib import Path
 from typing import Iterable
-import ezomero
 from omero.gateway import BlitzGateway
 from rdflib.query import ResultRow
 from rdflib import Graph
 from rdflib.term import Identifier
-from omero.model import ProjectI
+from rdflib import Graph
+from linkml_runtime.loaders import RDFLibLoader
+# from xsdata.formats.dataclass.serializers import XmlSerializer
+from omerocrate.ome import Ome
+from xsdata.formats.dataclass.parsers import JsonParser
+from xsdata.formats.dataclass.serializers import XmlSerializer
 
 def query_to_dicts(graph: Graph, query: str, prefixes: dict) -> Iterable[dict[str, Identifier]]:
     for row in graph.query(query, initNs=prefixes):
@@ -58,6 +63,23 @@ def upload_crate(crate: Path, connection: BlitzGateway):
             BIND(STR(?file_id) AS ?file_name)
         }
     """, initNs=prefixes)
+
+    json_ld = json.loads(result.graph.serialize(format="json-ld", context=prefixes, auto_compact=True))
+    del json_ld["@context"]
+    parser = JsonParser()
+    serializer = XmlSerializer()
+    hydrated = parser.from_string(json.dumps(json_ld), Ome)
+    return serializer.render(hydrated)
+
+    # omero_metadata: Ome = RDFLibLoader().load(result.graph, target_class=Ome)
+    return XmlSerializer().render(omero_metadata)
+
+def to_omero(json_ld: str, user_query: str):
+    g = Graph()
+    g.parse(json_ld, format="json-ld")
+    result = g.query(user_query)
+    omero_metadata = RDFLibLoader().load(result, OME)
+    return XmlSerializer().render(omero_metadata)
     print(result.serialize(format="json-ld", context=prefixes, auto_compact=True).decode())
 
     for row in graph.query("""
