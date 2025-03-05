@@ -1,0 +1,10 @@
+{% sparql '''
+    SELECT *
+    WHERE {
+        ?a foaf:knows ?b .
+        ?a foaf:name ?aname .
+        ?b foaf:name ?bname .
+    }
+''' %}
+foo
+{% endsparql %}

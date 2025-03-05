@@ -1,0 +1,19 @@
+<table>
+<tr>
+    <th>Person A</th>
+    <th>Person B</th>
+</tr>
+{% for row in graph.query('''
+    SELECT *
+    WHERE {
+        ?a foaf:knows ?b .
+        ?a foaf:name ?aname .
+        ?b foaf:name ?bname .
+    }
+''') %}
+<tr>
+    <td>{{ row.aname }}</td>
+    <td>{{ row.bname }}</td>
+</tr>
+{% endfor %}
+</table>
