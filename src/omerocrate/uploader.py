@@ -22,6 +22,7 @@ class OmeroUploader:
     def namespaces(self) -> Namespaces:
         return {
             "schema": URIRef("http://schema.org/"),
+            "crate": URIRef(f"{self.crate.as_uri()}/")
         }
 
     @cached_property
@@ -54,8 +55,8 @@ class OmeroUploader:
         result = self.select_one("""
             SELECT ?dataset_id
             WHERE {
-                ?dataset_id a omero:Dataset .
-                "ro-crate-metadata.json" schema:about ?dataset_id .
+                ?dataset_id a schema:Dataset .
+                crate:ro-crate-metadata.json schema:about ?dataset_id .
             }
         """)
         return result['dataset_id']
@@ -69,11 +70,29 @@ class OmeroUploader:
                 ?root schema:name ?name .
                 ?root schema:name ?description .
             }
-        """)
+        """, variables={"root": self.root_dataset_id})
 
         dataset.setName(result['name'])
         dataset.setDescription(result['description'])
         dataset.save()
         return dataset
 
-    def upload(self):
+    def connect(self):
+        if not self.conn.isConnected():
+            result = self.conn.connect()
+            if not result:
+                raise ValueError(f"Could not connect to OMERO: {self.conn.getLastError()}")
+
+    def add_images(self, dataset: gateway.DatasetWrapper):
+        for image in self.select_many("""
+            SELECT ?file_path
+            WHERE {
+                ?file_path a schema:MediaObject ;
+                schema:encodingFormat ?img_format .
+                FILTER STRSTARTS(?img_format, "image/")
+            """):
+            pass
+
+    def execute(self):
+        self.connect()
+        dataset = self.make_dataset()
