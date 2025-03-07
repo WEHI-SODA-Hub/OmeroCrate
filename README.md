@@ -2,6 +2,17 @@
 
 Integration layer between the OMERO image platform and RO-Crate metadata standard.
 
+## Installation
+
+You may optionally want to install Glencoe's prebuilt binaries, ie
+```bash
+uv pip install https://github.com/glencoesoftware/zeroc-ice-py-linux-x86_64/releases/download/20240202/zeroc_ice-3.6.5-cp39-cp39-manylinux_2_28_x86_64.whl
+```
+
+Then install using:
+```bash
+uv sync
+```
 ## Design
 
 The core idea used here is that SPARQL queries can idiomatically map from RO-Crate JSON-LD to OMERO data structures.

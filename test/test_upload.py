@@ -9,7 +9,7 @@ def test_upload_report(ca_imaging_1021: Path):
     uploader = OmeroUploader(
         conn = BlitzGateway(
             username=os.environ["OMERO_USER"],
-            passwd=os.environ["OMERO_PASS"],
+            passwd=os.environ["OMERO_PASSWORD"],
             host=os.environ["OMERO_HOST"],
             port=os.environ["OMERO_PORT"],
             secure=True
