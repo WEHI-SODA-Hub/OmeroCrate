@@ -1,12 +1,16 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, cast
+from typing import Any, Iterable, cast
 from omero.gateway import BlitzGateway
 from rdflib import Graph, URIRef
 from rdflib.query import ResultRow
 from rdflib.term import Identifier
 from functools import cached_property
 from omero import model, gateway
+from omero.cli import CLI
+from contextlib import redirect_stdout
+from io import StringIO
+import yaml
 
 Namespaces = dict[str, URIRef]
 Variables = dict[str, Identifier]
@@ -17,6 +21,8 @@ class OmeroUploader:
     "OMERO connection object, typically obtained using `ezomero.connect()`"
     crate: Path
     "Path to the directory containing the crate"
+    cli: CLI = field(default_factory=CLI)
+    "OMERO CLI runner"
 
     @property
     def namespaces(self) -> Namespaces:
@@ -83,15 +89,29 @@ class OmeroUploader:
             if not result:
                 raise ValueError(f"Could not connect to OMERO: {self.conn.getLastError()}")
 
+    def link_image(self, image_path: str) -> int:
+        output = StringIO()
+        with redirect_stdout(output):
+            self.cli.invoke([
+                "import",
+                "--",
+                "--transfer=ln_s",
+                image_path,
+                "--output",
+                "yaml"
+            ])
+        parsed: list[dict[str, Any]] = yaml.safe_load(output.getvalue())
+        return parsed[0]["Image"][0]
+
     def add_images(self, dataset: gateway.DatasetWrapper):
-        for image in self.select_many("""
+        for result in self.select_many("""
             SELECT ?file_path
             WHERE {
                 ?file_path a schema:MediaObject ;
                 schema:encodingFormat ?img_format .
                 FILTER STRSTARTS(?img_format, "image/")
             """):
-            pass
+            self.link_image(str(result['file_path']))
 
     def execute(self):
         self.connect()

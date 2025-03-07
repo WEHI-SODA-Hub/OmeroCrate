@@ -10,6 +10,7 @@ requires-python = ">=3.9"
 dependencies = [
     "ezomero>=3.1.0",
     "mypy>=1.15.0",
+    "pyyaml>=6.0.2",
     "rdflib>=7.1.1",
     "xsdata[lxml]>=24.12",
 ]
@@ -27,5 +28,6 @@ stubPath = "./typings"
 [dependency-groups]
 dev = [
     "dotenv>=0.9.9",
+    "gitpython>=3.1.44",
     "pytest>=8.3.5",
 ]
