@@ -1,0 +1,38 @@
+site_name: omeROcrate
+docs_dir: .
+site_dir: ../site
+
+plugins:
+  - search
+  - same-dir
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            separate_signature: false
+            show_signature_annotations: false
+            show_signature: true
+
+
+theme:
+  name: material
+
+markdown_extensions:
+  - mkdocs-typer
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+
+nav:
+  - Home: README.md
+  - docs/api.md
+  - docs/cli.md
+  - docs/alternatives.md
+  - docs/roadmap.md

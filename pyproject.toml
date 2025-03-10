@@ -8,15 +8,13 @@ authors = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "ezomero>=3.1.0",
-    "mypy>=1.15.0",
     "pyyaml>=6.0.2",
     "rdflib>=7.1.1",
-    "xsdata[lxml]>=24.12",
+    "typer>=0.15.2",
 ]
 
 [project.scripts]
-omerocrate = "omerocrate:main"
+omerocrate = "omerocrate.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -29,5 +27,10 @@ stubPath = "./typings"
 dev = [
     "dotenv>=0.9.9",
     "gitpython>=3.1.44",
+    "mkdocs-same-dir>=0.1.3",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.7",
+    "mkdocstrings[python]>=0.28.3",
     "pytest>=8.3.5",
+    "mkdocs-typer>=0.0.3",
 ]
