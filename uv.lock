@@ -507,10 +507,31 @@ wheels = [
 ]
 
 [[package]]
+name = "mypy"
+version = "1.16.0+dev.0f5ddd5e647d14afca93d3f41892b62af302e894"
+source = { git = "https://github.com/python/mypy#0f5ddd5e647d14afca93d3f41892b62af302e894" }
+dependencies = [
+    { name = "mypy-extensions" },
+    { name = "pathspec" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions" },
+]
+
+[[package]]
+name = "mypy-extensions"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/a4/1ab47638b92648243faf97a5aeb6ea83059cc3624972ab6b8d2316078d3f/mypy_extensions-1.0.0.tar.gz", hash = "sha256:75dbf8955dc00442a438fc4d0666508a9a97b6bd41aa2f0ffe9d2f2725af0782", size = 4433 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/e2/5d3f6ada4297caebe1a2add3b126fe800c96f56dbe5d1988a2cbe0b267aa/mypy_extensions-1.0.0-py3-none-any.whl", hash = "sha256:4392f6c0eb8a5668a69e23d168ffa70f0be9ccfd32b5cc2d26a34ae5b844552d", size = 4695 },
+]
+
+[[package]]
 name = "omerocrate"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "mypy" },
     { name = "pyyaml" },
     { name = "rdflib" },
     { name = "typer" },
@@ -530,6 +551,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "mypy", git = "https://github.com/python/mypy" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "rdflib", specifier = ">=7.1.1" },
     { name = "typer", specifier = ">=0.15.2" },

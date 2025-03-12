@@ -25,6 +25,11 @@ class OmeroUploader:
     "OMERO connection object, typically obtained using [`from_env`][omerocrate.gateway.from_env]"
     crate: Path
     "Path to the directory containing the crate"
+    transfer_type: Literal["ln", "ln_s", "ln_rn", "cp", "cp_rm", "upload", "upload_rm"] = "upload"
+    """
+    Transfer method, which determines how images are sent to OMERO.
+    `ln_s` is "in-place" importing, but it requires that this process has acess to both the image and permissions to write to the OMERO server.
+    """
 
     @property
     def namespaces(self) -> Namespaces:
@@ -107,6 +112,8 @@ class OmeroUploader:
         dataset.setName(result['name'])
         dataset.setDescription(result['description'])
         dataset.save()
+        # See https://github.com/ome/omero-py/issues/451
+        dataset._oid = dataset._obj.id.val
         return dataset
 
     def connect(self):
@@ -118,16 +125,14 @@ class OmeroUploader:
             if not result:
                 raise ValueError(f"Could not connect to OMERO: {self.conn.getLastError()}")
 
-    def upload_images(self, image_paths: Iterable[Path], transfer_type: Literal["ln", "ln_s", "ln_rn", "cp", "cp_rm", "upload", "upload_rm"]="upload") -> Iterable[gateway.ImageWrapper]:
+    def upload_images(self, image_paths: Iterable[Path], dataset: gateway.DatasetWrapper) -> Iterable[gateway.ImageWrapper]:
         """
         Uploads a set of images to OMERO.
         You could override this to use a different method of importing images.
 
         Params:
             image_path: Path to the image file
-            transfer_type: Transfer method, which determines how the image is sent to OMERO.
-                `ln_s` is "in-place" importing, but it requires that this process has acess to both the image and permissions to write to the OMERO server.
-        
+
         Returns: Wrapped OMERO image object
         """
 
@@ -138,18 +143,17 @@ class OmeroUploader:
         result = subprocess.run([
             "omero",
             "import",
+            "-d", str(dataset.getId()),
             "--server", self.conn.host,
             "--port", self.conn.port,
             "--key", self.conn._getSessionId(),
-            "--transfer", transfer_type,
+            "--transfer", self.transfer_type,
             *image_paths,
             "--output",
             "yaml"
         ], stdout=subprocess.PIPE, check=True)
         for image in yaml.safe_load_all(result.stdout):
             yield cast(gateway.ImageWrapper, self.conn.getObject("Image", image[0]["Image"][0]))
-        # image_id = parsed[0]["Image"][0]
-        # return cast(gateway.ImageWrapper, self.conn.getObject("Image", image_id))
 
     def add_image_to_dataset(self, dataset: gateway.DatasetWrapper, image: gateway.ImageWrapper) -> None:
         dataset._linkObject(image, "DatasetImageLinkI")
@@ -173,14 +177,12 @@ class OmeroUploader:
         ```
     """
 
-    def process_image(self, image: gateway.ImageWrapper, result: ResultRow, dataset: gateway.DatasetWrapper) -> gateway.ImageWrapper:
+    def process_image(self, image: gateway.ImageWrapper, result: ResultRow, dataset: gateway.DatasetWrapper) -> None:
         """
         Handles the processing of a single image extracted from the crate.
-        By default, this uploads the image to OMERO and adds it to the dataset.
+        By default, this does nothing.
         Override this to e.g. add additional metadata to the image using the `image` wrapper.
         """
-        self.add_image_to_dataset(dataset, image)
-        return image
 
     def path_from_image_result(self, result: ResultRow) -> Path:
         """
@@ -195,7 +197,7 @@ class OmeroUploader:
         """
         results = list(self.select_many(self.image_query))
         image_paths = [self.path_from_image_result(result) for result in results]
-        wrappers = list(self.upload_images(image_paths))
+        wrappers = list(self.upload_images(image_paths, dataset=dataset))
         for image, result in zip(wrappers, results):
             self.process_image(image, result, dataset)
 

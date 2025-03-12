@@ -80,10 +80,4 @@ When customizing omeROcrate, it is best to first look at [OMERO's own metadata s
 If not, the metadata can always become an annotation.
 
 In this case, `dateModified` could be interpreted as the acquisition date of the image.
-If this is true, we could subclass `OmeroUploader` to handle this properly:
-
-```python
-from omerocrate.uploader import OmeroUploader
-
-class CalciumUploader(OmeroUploader):
-    
+If this is true, we could subclass `OmeroUploader` to handle this properly.

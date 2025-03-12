@@ -1,19 +1,28 @@
 from pathlib import Path
 from omerocrate.uploader import OmeroUploader
-from omerocrate.gateway import from_env
-from omero.gateway import BlitzGateway
-import os
-import dotenv
+from omero.gateway import BlitzGateway, ImageWrapper, DatasetWrapper
 
-# To run the tests, each user will need to provide credentials for their own OMERO server
-# .env is a convenient way to store these credentials
-dotenv.load_dotenv()
+from omerocrate.utils import delete_dataset
 
-def test_upload_report(ca_imaging_1021: Path):
+def test_upload_default(ca_imaging_1021: Path, connection: BlitzGateway):
     uploader = OmeroUploader(
-        conn = from_env(),
+        conn=connection,
         crate=ca_imaging_1021
     )
     dataset = uploader.execute()
     assert dataset.name == "Ca-imaging (with stimulation)"
     assert dataset.countChildren() == 24
+    delete_dataset(dataset)
+
+def test_custom_uploader(ca_imaging_1021: Path, connection: BlitzGateway):
+    from calcium_uploader import CalciumUploader
+    uploader = CalciumUploader(
+        conn=connection,
+        crate=ca_imaging_1021
+    )
+    dataset = uploader.execute()
+    assert dataset.name == "Ca-imaging (with stimulation)"
+    assert dataset.countChildren() == 24
+    # Not all images have acquisition dates, but some do
+    assert any(child.getAcquisitionDate() is not None for child in dataset.listChildren())
+    delete_dataset(dataset)
