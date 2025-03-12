@@ -1,8 +1,4 @@
-from pathlib import Path
-from omero.gateway import BlitzGateway
+from omerocrate.uploader import OmeroUploader
+from omerocrate.gateway import from_env
 
-def upload_crate(crate: Path, connection: BlitzGateway):
-    """
-    Params:
-        c
-    """
+__all__ = ["OmeroUploader", "from_env"]
