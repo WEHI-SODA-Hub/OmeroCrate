@@ -1,0 +1,33 @@
+# Example
+
+## Data
+
+In this example we will use the Calcium Imaging data thanks to:
+
+> Schröder, M., Staehlke, S., Groth, P., Nebe, J. B., Spors, S., & Krüger, F. (2022). Structure-based knowledge acquisition from electronic lab notebooks for research data provenance documentation. Journal of Biomedical Semantics, 13. https://doi.org/10.1186/s13326-021-00257-x
+
+But you can use your own data instead.
+
+## Basic Usage
+
+First, we start by performing the installation [as described here](../README.md):
+
+```bash
+uv init
+uv add git+https://github.com/WEHI-SODA-Hub/OmeroCrate
+```
+
+Next, we obtain a copy of the crate we want to upload:
+
+```bash
+git clone https://github.com/SFB-ELAINE/Ca-imaging-RO-Crate.git
+```
+
+Then we authenticate:
+
+```bash
+export OMERO_PASSWORD=xxx
+export OMERO_HOST=xxx
+```
+
+

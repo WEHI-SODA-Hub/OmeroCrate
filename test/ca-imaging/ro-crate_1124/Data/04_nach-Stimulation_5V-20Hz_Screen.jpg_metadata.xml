@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ImageMetadata>
+  <Information>
+    <Document>
+      <UserName>LSM User</UserName>
+    </Document>
+    <Image>
+      <SizeX>1547</SizeX>
+      <SizeY>963</SizeY>
+      <PixelType>Bgr24</PixelType>
+      <ComponentBitCount>8</ComponentBitCount>
+      <Dimensions>
+        <T>
+          <StartTime>0001-01-01T00:00:00</StartTime>
+        </T>
+      </Dimensions>
+    </Image>
+  </Information>
+  <DisplaySetting>
+    <Channels>
+      <Channel Id="Channel:0" Name="C1">
+        <BitCountRange>8</BitCountRange>
+        <PixelType>Bgra32</PixelType>
+        <DyeName>Dye1</DyeName>
+        <ColorMode>None</ColorMode>
+      </Channel>
+    </Channels>
+  </DisplaySetting>
+</ImageMetadata>

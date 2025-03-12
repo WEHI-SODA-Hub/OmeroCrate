@@ -1,0 +1,65 @@
+cff-version: 1.2.0
+message: "If you use this dataset, please cite both the article from preferred-citation and the dataset itself."
+title: "RO-Crates from Calcium Imaging Experiments"
+authors:
+  - given-names: Max
+    family-names: Schröder
+    orcid: "https://orcid.org/0000-0003-1522-494X"
+  - given-names: Susanne
+    family-names: Staehlke
+    orcid: "https://orcid.org/0000-0002-0251-8263"
+  - given-names: Paul
+    family-names: Groth
+    orcid: "https://orcid.org/0000-0003-0183-6910"
+  - given-names: J. Barbara
+    family-names: Nebe
+    orcid: "https://orcid.org/0000-0003-2662-0905"
+  - given-names: Sascha
+    family-names: Spors
+    orcid: "https://orcid.org/0000-0001-7225-9992"
+  - given-names: Frank
+    family-names: Krüger
+    orcid: "https://orcid.org/0000-0002-7925-3363"
+repository-code: https://github.com/SFB-ELAINE/Ca-imaging-RO-Crate
+type: dataset
+license: CC-BY-4.0
+version: 1.0
+references:
+  - authors:
+      - given-names: Susanne
+        family-names: Staehlke
+        orcid: "https://orcid.org/0000-0002-0251-8263"
+      - given-names: J. Barbara
+        family-names: Nebe
+        orcid: "https://orcid.org/0000-0003-2662-0905"
+    title: "Research data of Calcium Imaging after electrical stimulation"
+    type: data
+    year: 2021
+    doi: 10.5281/zenodo.4923173
+preferred-citation:
+  authors:
+    - given-names: Max
+      family-names: Schröder
+      orcid: "https://orcid.org/0000-0003-1522-494X"
+    - given-names: Susanne
+      family-names: Staehlke
+      orcid: "https://orcid.org/0000-0002-0251-8263"
+    - given-names: Paul
+      family-names: Groth
+      orcid: "https://orcid.org/0000-0003-0183-6910"
+    - given-names: J. Barbara
+      family-names: Nebe
+      orcid: "https://orcid.org/0000-0003-2662-0905"
+    - given-names: Sascha
+      family-names: Spors
+      orcid: "https://orcid.org/0000-0001-7225-9992"
+    - given-names: Frank
+      family-names: Krüger
+      orcid: "https://orcid.org/0000-0002-7925-3363"
+  title: "Structure-based knowledge acquisition from electronic lab notebooks for research data provenance documentation"
+  type: article
+  journal: "Journal of Biomedical Semantics"
+  volume: 13
+  number: 4
+  year: 2022
+  doi: 10.1186/s13326-021-00257-x
