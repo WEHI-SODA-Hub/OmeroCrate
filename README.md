@@ -55,7 +55,7 @@ git clone https://github.com/SFB-ELAINE/Ca-imaging-RO-Crate.git
 Then we do a simple upload:
 
 ```bash
-uv run omerocrate upload Ca-imaging-RO-Crate
+uv run omerocrate upload Ca-imaging-RO-Crate/
 ```
 
 omeROcrate can do basic crate uploads without configuration.
@@ -63,7 +63,8 @@ omeROcrate can do basic crate uploads without configuration.
 ## Advanced Example
 
 RO-Crates are very flexible, which means that you probably use some extra types and properties that aren't handled by omeROcrate by default.
-Not to worry, you can quite easily customize it to suit your crates.
+Not to worry, you can quite easily customize it to suit your crates, via subclassing.
+
 For example, in the calcium imaging data, there are some entities that look a bit like this:
 ```json
 {
@@ -81,3 +82,13 @@ If not, the metadata can always become an annotation.
 
 In this case, `dateModified` could be interpreted as the acquisition date of the image.
 If this is true, we could subclass `OmeroUploader` to handle this properly.
+For an example of this, refer to: https://github.com/WEHI-SODA-Hub/OmeroCrate/blob/no-xml/test/calcium_uploader.py
+
+Currently if you subclass `OmeroUploader`, you will have to perform the upload in Python:
+```python
+uploader = CalciumUploader(
+    conn=connection,
+    crate=ca_imaging_1021
+)
+dataset = uploader.execute()
+```
