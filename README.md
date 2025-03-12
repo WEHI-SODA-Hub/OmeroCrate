@@ -1,4 +1,4 @@
-# OmeROCrate
+# omeROcrate
 
 Integration layer between the OMERO image platform and RO-Crate metadata standard.
 
