@@ -131,7 +131,8 @@ class OmeroUploader:
         You could override this to use a different method of importing images.
 
         Params:
-            image_path: Path to the image file
+            image_paths: Paths to image files to upload
+            dataset: OMERO dataset to add the images to
 
         Returns: Wrapped OMERO image object
         """

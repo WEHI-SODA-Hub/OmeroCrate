@@ -31,8 +31,8 @@ markdown_extensions:
 
 
 nav:
-  - Home: README.md
+  - Getting Started: README.md
   - docs/api.md
   - docs/cli.md
-  - docs/alternatives.md
   - docs/roadmap.md
+  - GitHub: 'https://github.com/WEHI-SODA-Hub/OmeroCrate'

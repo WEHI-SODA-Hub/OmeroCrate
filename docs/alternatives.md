@@ -1,5 +1,3 @@
-## Alternatives
-
 The core idea used here is that SPARQL queries can idiomatically map from RO-Crate JSON-LD to OMERO data structures.
 OMERO's schema is defined in terms of XML.
 
