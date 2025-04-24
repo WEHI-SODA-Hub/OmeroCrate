@@ -1,0 +1,67 @@
+from __future__ import annotations
+from typing import List, Any, Annotated
+from pydantic import BaseModel, Field
+
+KeyValue = tuple[str, Any]
+
+class Image(BaseModel):
+    name: Annotated[str, Field(description="Image name")]
+    description: Annotated[str, Field(description="Image description")]
+    keyValues: Annotated[List[KeyValue], Field(
+        default_factory=list,
+        description="List of key-value pairs associated with this image"
+    )]
+    filePath: Annotated[str, Field(
+        description="Path to the image file on disk",
+        examples=["/example/data/storage/Image_1.ome.tiff"]
+    )]
+    tag: Annotated[List[KeyValue], Field(
+        default_factory=list,
+        description="List of tags associated with this image"
+    )]
+
+
+class Dataset(BaseModel):
+    name: Annotated[str, Field(description="Dataset name")]
+    description: Annotated[str, Field(description="Dataset description")]
+    keyValues: Annotated[List[KeyValue], Field(
+        default_factory=list,
+        description="List of key-value pairs associated with this dataset"
+    )]
+    tag: Annotated[List[KeyValue], Field(
+        default_factory=list,
+        description="List of tags associated with this dataset"
+    )]
+    image: Annotated[List[Image], Field(
+        default_factory=list,
+        description="List of images in this dataset"
+    )]
+
+
+class Project(BaseModel):
+    name: Annotated[str, Field(description="Project name")]
+    description: Annotated[str, Field(description="Project description")]
+    keyValues: Annotated[List[KeyValue], Field(
+        default_factory=list,
+        description="List of key-value pairs associated with this project"
+    )]
+    tag: Annotated[List[KeyValue], Field(
+        default_factory=list,
+        description="List of tags associated with this project"
+    )]
+    dataset: Annotated[List[Dataset], Field(
+        default_factory=list,
+        description="List of datasets in this project"
+    )]
+
+
+class Upload(BaseModel):
+    group: Annotated[str, Field(
+        description="The OMERO group name"
+    )]
+    importUser: Annotated[str, Field(
+        description="Username of the user importing the data"
+    )]
+    project: Annotated[List[Project], Field(
+        description="List of projects in this OMERO crate"
+    )]
