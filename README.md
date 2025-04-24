@@ -12,7 +12,7 @@ Create a project if you haven't already:
 uv init
 ```
 
-You may optionally want to install [Glencoe's prebuilt binaries](https://github.com/glencoesoftware/zeroc-ice-py-linux-x86_64/releases), e.g.
+You may optionally want to install [Glencoe's prebuilt binaries](https://www.glencoesoftware.com/blog/2023/12/08/ice-binaries-for-omero.html), e.g.
 ```bash
 uv pip install https://github.com/glencoesoftware/zeroc-ice-py-linux-x86_64/releases/download/20240202/zeroc_ice-3.6.5-cp39-cp39-manylinux_2_28_x86_64.whl
 ```

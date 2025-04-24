@@ -1,6 +1,8 @@
 site_name: omeROcrate
 docs_dir: .
 site_dir: ../site
+exclude_docs: |
+  test
 
 plugins:
   - search

@@ -1,12 +1,11 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Literal, cast
+from typing import Iterable, Literal, cast
 from rdflib import Graph, URIRef
 from rdflib.query import ResultRow
 from rdflib.term import Identifier
 from functools import cached_property
 from omero import model, gateway
-from omero.cli import CLI
 import yaml
 from urllib.parse import urlparse
 import subprocess
