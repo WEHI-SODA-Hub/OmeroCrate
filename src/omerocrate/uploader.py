@@ -9,10 +9,7 @@ from functools import cached_property
 from omero import model, gateway, grid, cmd
 from omero.model import enums
 from omero.rtypes import rstring, rbool
-import yaml
-from omero.model.enums import ChecksumAlgorithmSHA1160
 from urllib.parse import urlparse
-from shutil import copyfileobj
 
 Namespaces = dict[str, URIRef]
 Variables = dict[str, Identifier]
@@ -142,38 +139,6 @@ class OmeroUploader:
         Images that get yielded should already be saved to the database.
         """
         raise NotImplementedError("upload_images() must be implemented in a subclass")
-        for result in self.select_many("""
-            SELECT *
-            WHERE {
-                ?file_path a schema:MediaObject ;
-                    omerocrate:upload true ;
-                OPTIONAL {
-                    ?file_path schema:name ?name .
-                }
-                OPTIONAL {
-                    ?file_path schema:description ?description .
-                }
-            }
-        """):
-            image = gateway.ImageWrapper(self.conn, model.ImageI())
-
-            # Attach the image file
-            fileset = model.FilesetI()
-            image_path = self.path_from_image_result(result)
-            entry = model.FilesetEntryI()
-            entry.setClientPath(rstring(image_path))
-            fileset.addFilesetEntry(entry)
-            image._obj.setFileset(fileset)
-            # image.fileset = fileset
-
-            # Add metadata
-            if result.name is None:
-                image.setName(image_path.name)
-            else:
-                image.setName(str(result.name))
-            if result.description is not None:
-                image.setName(str(result.description))
-            yield image
 
     def connect(self):
         """
@@ -183,45 +148,6 @@ class OmeroUploader:
             result = self.conn.connect()
             if not result:
                 raise ValueError(f"Could not connect to OMERO: {self.conn.getLastError()}")
-
-    # def synchronise(self, dataset: gateway.DatasetWrapper, images: Iterable[gateway.ImageWrapper]) -> None:
-    #     """
-    #     Synchronises the dataset and images with the OMERO server.
-    #     Can be overridden to upload in alternative ways such as the taskqueue or CLI
-    #     """
-    #     raise NotImplementedError("synchronise() must be implemented in a subclass")
-
-
-    # def upload_images(self, image_paths: Iterable[Path], dataset: gateway.DatasetWrapper) -> Iterable[gateway.ImageWrapper]:
-    #     """
-    #     Uploads a set of images to OMERO.
-    #     You could override this to use a different method of importing images.
-
-    #     Params:
-    #         image_paths: Paths to image files to upload
-    #         dataset: OMERO dataset to add the images to
-
-    #     Returns: Wrapped OMERO image object
-    #     """
-
-    #     if self.conn.host is None or self.conn.port is None:
-    #         raise ValueError("OMERO connection not initialized")
-
-    #     # Running import via CLI is very ugly, but using the Python API doesn't let us capture the output
-    #     result = subprocess.run([
-    #         "omero",
-    #         "import",
-    #         "-d", str(dataset.getId()),
-    #         "--server", self.conn.host,
-    #         "--port", self.conn.port,
-    #         "--key", self.conn._getSessionId(),
-    #         "--transfer", self.transfer_type,
-    #         *image_paths,
-    #         "--output",
-    #         "yaml"
-    #     ], stdout=subprocess.PIPE, check=True)
-    #     for image in yaml.safe_load_all(result.stdout):
-    #         yield cast(gateway.ImageWrapper, self.conn.getObject("Image", image[0]["Image"][0]))
 
     def add_image_to_dataset(self, dataset: gateway.DatasetWrapper, image: gateway.ImageWrapper) -> None:
         dataset._linkObject(image, "DatasetImageLinkI")
