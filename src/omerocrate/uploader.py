@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Literal, cast
+from time import sleep
+from typing import Any, Iterable, Literal, cast
 from rdflib import Graph, URIRef
 from rdflib.query import ResultRow
 from rdflib.term import Identifier
 from functools import cached_property
-from omero import model, gateway, grid
+from omero import model, gateway, grid, cmd
 from omero.model import enums
 from omero.rtypes import rstring, rbool
 import yaml
@@ -97,6 +98,21 @@ class OmeroUploader:
             }
         """)
         return result['dataset_id']
+
+    def find_images(self) -> Iterable[tuple[Identifier, Path]]:
+        """
+        Finds images that should be uploaded to OMERO.
+        Can be overridden to customize the image selection, although this typically isn't needed.
+        """
+        for result in self.select_many("""
+            SELECT ?file_path
+            WHERE {
+                ?file_path a schema:MediaObject ;
+                    omerocrate:upload true ;
+            }
+        """):
+            file_path = result['file_path']
+            yield file_path, Path(urlparse(file_path).path)
     
     def make_dataset(self) -> gateway.DatasetWrapper:
         """
@@ -116,14 +132,16 @@ class OmeroUploader:
 
         dataset.setName(result['name'])
         dataset.setDescription(result['description'])
+        dataset.save()
         return dataset
 
-    def make_images(self, dataset: gateway.DatasetWrapper) -> Iterable[gateway.ImageWrapper]:
+    def upload_images(self, image_paths: list[Path], **kwargs: Any) -> Iterable[gateway.ImageWrapper]:
         """
-        Creates an OMERO image wrapper for the given path.
-        Override to customize the image creation.
-        This method should not actually save the image!
+        Queries the metadata crate for images and uploads them to OMERO.
+        Ideally minimal or no metadata should be set here.
+        Images that get yielded should already be saved to the database.
         """
+        raise NotImplementedError("upload_images() must be implemented in a subclass")
         for result in self.select_many("""
             SELECT *
             WHERE {
@@ -145,7 +163,8 @@ class OmeroUploader:
             entry = model.FilesetEntryI()
             entry.setClientPath(rstring(image_path))
             fileset.addFilesetEntry(entry)
-            image.fileset = fileset
+            image._obj.setFileset(fileset)
+            # image.fileset = fileset
 
             # Add metadata
             if result.name is None:
@@ -165,39 +184,12 @@ class OmeroUploader:
             if not result:
                 raise ValueError(f"Could not connect to OMERO: {self.conn.getLastError()}")
 
-    def synchronise(self, dataset: gateway.DatasetWrapper, images: Iterable[gateway.ImageWrapper]) -> None:
-        """
-        Synchronises the dataset and images with the OMERO server.
-        Can be overridden to upload in alternative ways such as the taskqueue or CLI
-        """
-        client = self.conn.c
-        repo = client.getManagedRepository()
-        algorithm = model.ChecksumAlgorithmI()
-        algorithm.setValue(rstring(enums.ChecksumAlgorithmSHA1160))
-        dataset.save()
-        for image in images:
-            dataset._linkObject(image, "DatasetImageLinkI")
-            upload = model.UploadJobI()
-            image.fileset.linkJob(upload)
-            importer = repo.importFileset(
-                image.fileset,
-                grid.ImportSettings(
-                    checksumAlgorithm=algorithm,
-                    doThumbnails = rbool(True),
-                    noStatsInfo = rbool(False)
-                ))
-            
-            path = image.fileset.getFilesetEntry(0)._clientPath.getValue()
-            upload_file = importer.getUploader(0)
-            offset = 0
-            with open(path, "rb") as f:
-                while chunk := f.read(4096):
-                    upload_file.write(chunk, offset, len(chunk))
-                    offset += len(chunk)
-            upload_file.close()
-            importer.verifyUpload([client.sha1(path)])
-            image.save()
-            dataset._linkObject(image, "DatasetImageLinkI")
+    # def synchronise(self, dataset: gateway.DatasetWrapper, images: Iterable[gateway.ImageWrapper]) -> None:
+    #     """
+    #     Synchronises the dataset and images with the OMERO server.
+    #     Can be overridden to upload in alternative ways such as the taskqueue or CLI
+    #     """
+    #     raise NotImplementedError("synchronise() must be implemented in a subclass")
 
 
     # def upload_images(self, image_paths: Iterable[Path], dataset: gateway.DatasetWrapper) -> Iterable[gateway.ImageWrapper]:
@@ -240,24 +232,88 @@ class OmeroUploader:
         """
         return Path(urlparse(result['file_path']).path)
 
-    # def process_images(self, dataset: gateway.DatasetWrapper):
-    #     """
-    #     Runs the image selection query and processes each result.
-    #     Typically you don't need to override this method: either `process_image` or `image_query` should be enough.
-    #     """
-    #     results = list(self.select_many(self.image_query))
-    #     image_paths = [self.path_from_image_result(result) for result in results]
-    #     wrappers = list(self.upload_images(image_paths, dataset=dataset))
-    #     for image, result in zip(wrappers, results):
-    #         self.process_image(image, result, dataset)
+    def process_image(self, uri: URIRef, image: gateway.ImageWrapper):
+        """
+        Adds metadata to the image object from the crate.
+        Can be overridden to add custom metadata.
+        """
+        result = self.select_one("""
+            SELECT *
+            WHERE {
+                OPTIONAL {
+                    ?file_path schema:name ?name .
+                }
+                OPTIONAL {
+                    ?file_path schema:description ?description .
+                }
+            }
+        """, variables={"file_path": uri})
+        if (description := result.description) is not None:
+            image.setDescription(str(description))
+        if (name := result.name) is not None:
+            image.setName(str(name))
 
+        image.save()
+        
     def execute(self) -> gateway.DatasetWrapper:
         """
         Runs the entire processing workflow.
         Typically you don't need to override this method.
         """
         self.connect()
+        img_uris: list[URIRef]
+        img_paths: list[Path]
+        img_uris, img_paths = list(zip(*self.find_images()))
+        img_wrappers = list(self.upload_images(img_paths))
         dataset = self.make_dataset()
-        images = self.make_images(dataset)
-        self.synchronise(dataset, images)
+        for wrapper, uri in zip(img_wrappers, img_uris):
+            dataset._linkObject(wrapper, "DatasetImageLinkI")
+            self.process_image(uri, wrapper)
         return dataset
+
+class ApiUploader(OmeroUploader):
+    """
+    Subclass of OmeroUploader that uses the OMERO API to upload images.
+    """
+    def upload_images(self, image_paths: list[Path], *, chunk_size: int = 4096, **kwargs: Any) -> Iterable[gateway.ImageWrapper]:
+        handles: list[cmd.HandlePrx] = []
+        client = self.conn.c
+        repo = client.getManagedRepository()
+        algorithm = model.ChecksumAlgorithmI()
+        algorithm.setValue(rstring(enums.ChecksumAlgorithmSHA1160))
+        for path in image_paths:
+            # Fileset, entry and upload entities are required for uploading
+            fileset = model.FilesetI()
+            entry = model.FilesetEntryI()
+            entry.setClientPath(rstring(path))
+            fileset.addFilesetEntry(entry)
+            upload = model.UploadJobI()
+            fileset.linkJob(upload)
+
+            importer = repo.importFileset(
+                fileset,
+                grid.ImportSettings(
+                    checksumAlgorithm=algorithm,
+                    doThumbnails=rbool(True),
+                    noStatsInfo=rbool(False)
+                )
+            )
+            upload_file = importer.getUploader(0)
+            offset = 0
+            with open(path, "rb") as f:
+                while chunk := f.read(chunk_size):
+                    upload_file.write(chunk, offset, len(chunk))
+                    offset += len(chunk)
+            upload_file.close()
+            handles.append(importer.verifyUpload([client.sha1(path)]))
+
+        # Wait for the upload to finish
+        while handles:
+            sleep(0.1)
+            for handle in handles:
+                response = handle.getResponse()
+                if response is not None:
+                    handles.remove(handle)
+                    pixels: model.PixelsI
+                    for pixels in response.pixels:
+                        yield gateway.ImageWrapper(conn=self.conn, obj=pixels.getImage())

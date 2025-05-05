@@ -7,13 +7,14 @@ KeyValue = tuple[str, Any]
 class Image(BaseModel):
     name: Annotated[str, Field(description="Image name")]
     description: Annotated[str, Field(description="Image description")]
-    keyValues: Annotated[List[KeyValue], Field(
+    key_values: Annotated[List[KeyValue], Field(
         default_factory=list,
-        description="List of key-value pairs associated with this image"
+        description="List of key-value pairs associated with this image",
+        alias="keyValues"
     )]
-    filePath: Annotated[str, Field(
+    file_path: Annotated[str, Field(
         description="Path to the image file on disk",
-        examples=["/example/data/storage/Image_1.ome.tiff"]
+        alias="filePath"
     )]
     tag: Annotated[List[KeyValue], Field(
         default_factory=list,
@@ -24,9 +25,10 @@ class Image(BaseModel):
 class Dataset(BaseModel):
     name: Annotated[str, Field(description="Dataset name")]
     description: Annotated[str, Field(description="Dataset description")]
-    keyValues: Annotated[List[KeyValue], Field(
+    key_values: Annotated[List[KeyValue], Field(
         default_factory=list,
-        description="List of key-value pairs associated with this dataset"
+        description="List of key-value pairs to be added to this dataset",
+        alias="keyValues"
     )]
     tag: Annotated[List[KeyValue], Field(
         default_factory=list,
@@ -41,9 +43,10 @@ class Dataset(BaseModel):
 class Project(BaseModel):
     name: Annotated[str, Field(description="Project name")]
     description: Annotated[str, Field(description="Project description")]
-    keyValues: Annotated[List[KeyValue], Field(
+    key_values: Annotated[List[KeyValue], Field(
         default_factory=list,
-        description="List of key-value pairs associated with this project"
+        description="List of key-value pairs to be added to this project",
+        alias="keyValues"
     )]
     tag: Annotated[List[KeyValue], Field(
         default_factory=list,
@@ -59,9 +62,10 @@ class Upload(BaseModel):
     group: Annotated[str, Field(
         description="The OMERO group name"
     )]
-    importUser: Annotated[str, Field(
-        description="Username of the user importing the data"
+    import_user: Annotated[str, Field(
+        description="Username of the user importing the data",
+        alias="importUser"
     )]
     project: Annotated[List[Project], Field(
-        description="List of projects in this OMERO crate"
+        description="List of projects to be uploaded"
     )]

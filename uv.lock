@@ -1,5 +1,9 @@
 version = 1
 requires-python = ">=3.9"
+resolution-markers = [
+    "python_full_version < '3.10'",
+    "python_full_version >= '3.10'",
+]
 
 [[package]]
 name = "annotated-types"
@@ -236,7 +240,7 @@ name = "importlib-metadata"
 version = "8.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp" },
+    { name = "zipp", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/33/08/c1395a292bb23fd03bdf572a1357c5a733d3eecbab877641ceacab23db6e/importlib_metadata-8.6.1.tar.gz", hash = "sha256:310b41d755445d74569f993ccfc22838295d9fe005425094fad953d7f15c8580", size = 55767 }
 wheels = [
@@ -578,7 +582,7 @@ wheels = [
 
 [[package]]
 name = "omero-py"
-version = "5.19.6"
+version = "5.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
@@ -592,9 +596,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "zeroc-ice" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4e/33/41e4875ce147203dbadbdd939e8d0dd3afa24bceeda127aa9f77f9d1d6eb/omero_py-5.19.6.tar.gz", hash = "sha256:eb415e817610049c71e0e53566dd0daba0022f23c1ce3b2f0c83f25040c690d4", size = 2340152 }
+sdist = { url = "https://files.pythonhosted.org/packages/14/86/dcf15661f2f13265b3f4a2aca322c41e2de3f238010be78d7c0979ecace0/omero_py-5.20.0.tar.gz", hash = "sha256:735ad05855794b7107382880111e88399ca23c1a4367e65ade950cdfb1077246", size = 2341536 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/93/ad/341a200804eed0f24ff1dd01be102f9f131f68f01ec7ce976f0087d2ccff/omero_py-5.19.6-py3-none-any.whl", hash = "sha256:463ff39e56984f71215e72c402720149bbd51be11d2ecca852458ce9c67cec14", size = 2781332 },
+    { url = "https://files.pythonhosted.org/packages/d7/b0/854943366b7712903746eed3a7b42e0a44053810f636ed796b2b5e8cea06/omero_py-5.20.0-py3-none-any.whl", hash = "sha256:2f71cba57d6b1d10d5b880121182210330ffae3987bbb7f6a95acdddd1fcc92d", size = 2781870 },
 ]
 
 [[package]]
@@ -623,7 +627,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "omero-py", specifier = ">=5.19.6" },
+    { name = "omero-py", specifier = ">=5.19.7" },
     { name = "pydantic", specifier = ">=2.11.3" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "rdflib", specifier = ">=7.1.1" },
