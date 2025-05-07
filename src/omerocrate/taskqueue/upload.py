@@ -1,76 +1,114 @@
+import asyncio
 from pathlib import Path
-from typing import Iterable, Any, Optional
-from omero import gateway
-import requests
+from typing import AsyncIterable, Any, Optional
+from omero import gateway, model
+import httpx
 import os
+
+from pydantic import Field, computed_field
 
 from omerocrate.taskqueue import models as upload_models
 from omerocrate.uploader import OmeroUploader
+from uuid import uuid4
 
 class TaskqueueUploader(OmeroUploader):
     """
     Subclass of OmeroUploader that uses `gs-taskqueue` to upload images to OMERO.
     """
-    def upload_images(self, image_paths: list[Path], **kwargs: Any) -> Iterable[gateway.ImageWrapper]:
-        req = upload_models.Upload(
-            project=[upload_models.Project(
-                name="",
-                description="",
-                dataset=[upload_models.Dataset(
-                    name="",
-                    description="",
-                    image=[upload_models.Image(
-                        name="",
-                        description="",
+    client: httpx.AsyncClient = Field(default_factory=httpx.AsyncClient, description="HTTP client for making requests to the Flower API server")
+    host: str = Field(default_factory=lambda: os.environ["FLOWER_HOST"], description="Host of the Flower API server")
+    username: str = Field(default_factory=lambda: os.environ["FLOWER_USER"], description="Username for the Flower API server")
+    password: str = Field(default_factory=lambda: os.environ["FLOWER_PASSWORD"], description="Password for the Flower API server")
+
+    @computed_field
+    @property
+    def http_auth(self) -> tuple[str, str]:
+        """
+        Returns the HTTP authentication credentials for the Flower API server.
+        """
+        return (self.username, self.password)
+
+    async def upload_images(self, image_paths: list[Path], **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
+        req = upload_models.UploadRequest(
+            project=[upload_models.ProjectRequest(
+                name=str(uuid4()),
+                description=str(uuid4()),
+                dataset=[upload_models.DatasetRequest(
+                    name=str(uuid4()),
+                    description=str(uuid4()),
+                    image=[upload_models.ImageRequest(
+                        name=str(uuid4()),
+                        description=str(uuid4()),
                         file_path=str(path)
                     ) for path in image_paths]
                 )]
             )],
-            group="",
+            group="grp_omeplus",
             import_user=os.environ["OMERO_USER"],
         )
 
-        upload_to_omero(req)
+        task_id = (await self.upload_to_omero(req)).task_id
+        while True:
+            await asyncio.sleep(1)
+            status = await self.upload_status(task_id)
+            if status.state in {"SUCCESS", "FAILURE"}:
+                break
+        result = await self.upload_result(task_id)
+        if (error := self.error_from_result(result)) is not None:
+            raise Exception(error)
+        for upload in result.result:
+            for project in upload.project:
+                for dataset in project.dataset:
+                    for image in dataset.image:
+                        if isinstance(image, upload_models.SuccessImageResponse):
+                            for image_id in image.object_id:
+                                yield gateway.ImageWrapper(conn=self.conn, obj=model.ImageI(image_id))
 
-def upload_to_omero(upload: upload_models.Upload, host: Optional[str] = os.environ.get("FLOWER_HOST"), username: Optional[str] = os.environ.get("FLOWER_USER"), password: Optional[str] = os.environ.get("FLOWER_PASSWORD")) -> None:
-    URL_SUBMIT = f"{host}/flower/api/task/send-task/gs_import_run_omero_import" 
-    # URL_CHECK_INFO = f"{host}/flower/api/task/info/{task_id}" 
-    # URL_RESULT = f"{host}/flower/api/task/result/{task_id}" 
-    # URL_AUTH = ('HTACCESS_USERNAME', 'HTACCESS_PASSWORD')
-    if host is None or username is None or password is None:
-        raise ValueError("Host, username and password must be set")
+    def error_from_result(self, result: upload_models.UploadResultSet) -> Optional[str]:
+        """
+        Returns an error message if the upload failed, or None if it succeeded.
+        """
+        if result.state != "SUCCESS":
+            return "Entire upload failed."
+        for upload in result.result:
+            if upload.import_status != "SUCCEEDED":
+                return "Singular upload failed"
+            for project in upload.project:
+                for dataset in project.dataset:
+                    if dataset.import_status != "SUCCEEDED":
+                        return "Dataset upload failed."
+                    for image in dataset.image:
+                        if image.import_status != "SUCCEEDED":
+                            return f"Image {image.file_path} upload failed with status {image.import_summary}"
 
-    # Submit the task
-    response = requests.post(
-        URL_SUBMIT,
-        auth=(username, password),
-        data=upload.model_dump(),
-        verify=False
-    )
-    response.raise_for_status()
-    return response.json()
+    async def upload_to_omero(self, upload: upload_models.UploadRequest) -> upload_models.UploadReponse:
+        """
+        Submits the upload request to the Flower API server and returns the API response.
+        """
+        response = await self.client.post(
+            f"{self.host}/flower/api/task/send-task/gs_import_run_omero_import" ,
+            auth=self.http_auth,
+            json={"args": [upload.model_dump()]},
+            # verify=False
+        )
+        response.raise_for_status()
+        return upload_models.UploadReponse.model_validate(response.json())
 
-    # task_id = response.json()["task-id"]
-    # print(f"Task submitted with id: {task_id}")
+    async def upload_status(self, task_id: str):
+        URL_CHECK_INFO = f"{self.host}/flower/api/task/info/{task_id}" 
 
-    # # Check the task status
-    # response = requests.get(
-    #     URL_CHECK_INFO.format(task_id=task_id),
-    #     auth=URL_AUTH)
-    # response.raise_for_status()
-
-    # run_time = response.json()["runtime"]
-    # while run_time is None:
-    #     response = requests.get(
-    #         URL_CHECK_INFO.format(task_id=task_id),
-    #         auth=URL_AUTH)
-    #     response.raise_for_status()
-    #     print(f"Status: {response.json()['state']}")
-    #     run_time = response.json()["runtime"]
-    #     time.sleep(1)
-
-    # # Get the result
-    # response = requests.get(
-    #     URL_RESULT.format(task_id=task_id),
-    #     auth=URL_AUTH)
-    # print(f"Import status: {response.json()['result'][0]['importStatus']}")
+        # Check the task status
+        response = await self.client.get(
+            URL_CHECK_INFO,
+            auth=self.http_auth
+        )
+        response.raise_for_status()
+        return upload_models.UploadStatus.model_validate(response.json())
+        
+    async def upload_result(self, task_id: str):
+        response = await self.client.get(
+            f"{self.host}/flower/api/task/result/{task_id}",
+            auth=self.http_auth
+        )
+        response.raise_for_status()
+        return upload_models.UploadResultSet.model_validate(response.json())
