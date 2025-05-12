@@ -3,7 +3,37 @@ from datetime import datetime
 from typing import List, Any, Annotated, Literal, Optional, Union
 from pydantic import BaseModel, Field, BeforeValidator, ConfigDict, AliasChoices
 
+def parse_object_id(value: str | int | list | None) -> int | None:
+    """
+    Parse the object ID from a string.
+    """
+    if isinstance(value, list):
+        if len(value) > 1:
+            raise ValueError(f"Invalid object ID: {value}")
+        elif len(value) == 1:
+            return parse_object_id(value[0])
+        else:
+            return None
+    
+    elif value is None:
+        return None
+
+    else:
+        return int(value)
+
+
 KeyValue = tuple[str, Any]
+Error = Annotated[Optional[str], Field(
+    description="Error message if the task failed",
+    default=None
+)]
+OmeroId = Annotated[Optional[int], Field(
+    description="OMERO ID of the dataset"
+), BeforeValidator(parse_object_id)]
+ObjectId = Annotated[OmeroId, Field(
+    validation_alias=AliasChoices("objectId", "object_id"),
+    alias="objectId"
+)]
 
 class TaskQueueBase(BaseModel):
     """
@@ -39,12 +69,14 @@ class DatasetFields(TaskQueueBase):
     """
     Common fields for Dataset and DatasetRequest
     """
-    name: Annotated[str, Field(description="Dataset name")]
+    name: Annotated[Optional[str], Field(description="Dataset name")] = None
+    object_id: ObjectId = None
     description: Annotated[str, Field(description="Dataset description")]
     key_values: list[KeyValue] = Field(
         default_factory=list,
         description="List of key-value pairs to be added to this dataset",
-        alias="keyValues"
+        alias="keyValues",
+        validation_alias=AliasChoices("keyValues", "key_values")
     )
     tag: list[KeyValue] = Field(
         default_factory=list,
@@ -60,8 +92,9 @@ class DatasetRequest(DatasetFields):
 
 
 class ProjectFields(TaskQueueBase):
-    name: Annotated[str, Field(description="Project name")]
-    description: Annotated[str, Field(description="Project description")]
+    name: Annotated[Optional[str], Field(description="Project name")] = None
+    object_id: ObjectId = None
+    description: Annotated[Optional[str], Field(description="Project description")] = None
     key_values: list[KeyValue] = Field(
         default_factory=list,
         description="List of key-value pairs to be added to this project",
@@ -104,7 +137,7 @@ class UploadRequest(UploadFields):
     )
 
 State = Annotated[Literal[
-    "PENDING", "FAILURE", "STARTED", "SUCCESS"
+    "PENDING", "FAILURE", "STARTED", "SUCCESS", "IMPORT-IN-PROGRESS"
 ], Field(
     description="The status of the upload task"
 )]
@@ -115,7 +148,8 @@ class UploadReponse(TaskQueueBase):
     """
     task_id: Annotated[str, Field(
         description="The ID of the task in the task queue",
-        alias="task-id"
+        alias="task-id",
+        validation_alias=AliasChoices("task-id", "task_id")
     )]
     state: State
 
@@ -163,60 +197,48 @@ class ImportSummary(TaskQueueBase):
     importer_time: str
     error: None
     exception: None
-    file_exists: None
-    clientpath: None
-    plateId: None
-    imageId: str
+    file_exists: Optional[bool]
+    clientpath: Optional[str]
+    plate_id: Annotated[None, Field(
+        alias="plateId",
+    )]
+    image_id: Annotated[OmeroId, Field(
+        alias="imageId",
+    )]
     time: str
 
-ImportStatus = Annotated[Literal["SUCCEEDED", "FAILED"], Field(
-    alias="importStatus",
-    description="The status of part the import task"
+ImportStatus = Annotated[Optional[Literal["SUCCEEDED", "FAILED"]], Field(
+    description="The status of part the import task",
+    default=None,
+    alias="importStatus"
 )]
 
-class SuccessImageResponse(ImageRequest):
+class ImageResponse(ImageRequest):
     """
     Data returned by the task queue after the image has been imported
     """
-    import_status: ImportStatus
-    import_summary: Annotated[ImportSummary, Field(
+    import_status: ImportStatus = None
+    import_summary: Annotated[Union[ImportSummary, str, None], Field(
         alias="importSummary"
-    )]
-    object_id: Annotated[list[int], Field(
-        alias="objectId"
-    )]
-    fileset_id: Annotated[str, Field(
-        alias="filesetId"
-    )]
-
-class FailureImageResponse(ImageRequest):
-    """
-    Data returned by the task queue after the image has been imported
-    """
-    import_status: Annotated[Literal["FAILED"], Field(
-        alias="importStatus"
-    )]
-    import_summary: Annotated[str, Field(
-        alias="importSummary"
-    )]
-    object_id: Annotated[None, Field(
-        alias="objectId"
-    )]
-    fileset_id: Annotated[None, Field(
-        alias="filesetId"
-    )]
+    )] = None
+    object_id: ObjectId = None
+    fileset_id: Annotated[OmeroId, Field(alias="filesetId")] = None
+    error: Error = None
 
 class DatasetResult(DatasetFields):
-    image: list[Union[SuccessImageResponse, FailureImageResponse]]
-    import_status: ImportStatus
+    image: list[ImageResponse]
+    import_status: ImportStatus = None
+    error: Error = None
 
 class ProjectResult(ProjectFields):
     dataset: List[DatasetResult]
-    import_status: ImportStatus
+    import_status: ImportStatus = None
+    error: Error = None
 
 class UploadResult(UploadFields):
     project: List[ProjectResult]
-    import_status: ImportStatus
+    import_status: ImportStatus = None
+    error: Error = None
 
 class UploadResultSet(TaskQueueBase):
     task_id: Annotated[str, Field(alias='task-id')]
