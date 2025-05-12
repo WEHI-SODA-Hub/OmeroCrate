@@ -133,12 +133,18 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         dataset.save()
         return dataset
 
-    async def upload_images(self, image_paths: list[Path], **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
+    async def upload_images(self, image_paths: list[Path], dataset: gateway.DatasetWrapper, **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
         """
         Queries the metadata crate for images and uploads them to OMERO.
         Ideally minimal or no metadata should be set here.
         Images that get yielded should already be saved to the database.
+
+        Params:
+            image_paths: List of paths to the images to be uploaded.
+            dataset: The OMERO dataset to which the images should be added.
         """
+        # Note: Metadata is not set here because we want to allow `process_image()` to be independent of the upload method.
+
         # Hack to make this method an async generator
         if False:
             yield
@@ -162,7 +168,7 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         """
         return Path(urlparse(result['file_path']).path)
 
-    def process_image(self, uri: URIRef, image: gateway.ImageWrapper):
+    def process_image(self, uri: URIRef, image: gateway.ImageWrapper) -> None:
         """
         Adds metadata to the image object from the crate.
         Can be overridden to add custom metadata.
@@ -193,11 +199,10 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         self.connect()
         img_uris: list[URIRef]
         img_paths: list[Path]
-        img_uris, img_paths = list(zip(*self.find_images()))
-        img_wrappers = [img async for img in self.upload_images(img_paths)]
         dataset = self.make_dataset()
+        img_uris, img_paths = list(zip(*self.find_images()))
+        img_wrappers = [img async for img in self.upload_images(img_paths, dataset)]
         for wrapper, uri in zip(img_wrappers, img_uris):
-            dataset._linkObject(wrapper, "DatasetImageLinkI")
             self.process_image(uri, wrapper)
         return dataset
 
@@ -205,7 +210,7 @@ class ApiUploader(OmeroUploader):
     """
     Subclass of OmeroUploader that uses the OMERO API to upload images.
     """
-    async def upload_images(self, image_paths: list[Path], *, chunk_size: int = 4096, **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
+    async def upload_images(self, image_paths: list[Path], dataset: gateway.DatasetWrapper, *, chunk_size: int = 4096, **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
         handles: list[cmd.HandlePrx] = []
         client = self.conn.c
         repo = client.getManagedRepository()
@@ -246,4 +251,7 @@ class ApiUploader(OmeroUploader):
                     handles.remove(handle)
                     pixels: model.PixelsI
                     for pixels in response.pixels:
-                        yield gateway.ImageWrapper(conn=self.conn, obj=pixels.getImage())
+                        wrapper = gateway.ImageWrapper(conn=self.conn, obj=pixels.getImage())
+                        # Add the image to the dataset
+                        dataset._linkObject(wrapper, "DatasetImageLinkI")
+                        yield wrapper

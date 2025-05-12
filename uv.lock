@@ -643,7 +643,7 @@ wheels = [
 
 [[package]]
 name = "omero-py"
-version = "5.20.0"
+version = "5.19.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
@@ -657,9 +657,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "zeroc-ice" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/14/86/dcf15661f2f13265b3f4a2aca322c41e2de3f238010be78d7c0979ecace0/omero_py-5.20.0.tar.gz", hash = "sha256:735ad05855794b7107382880111e88399ca23c1a4367e65ade950cdfb1077246", size = 2341536 }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/d0/8bb94b279da4199f9c56752aa643e24213c12793375b09d718e3090f621b/omero_py-5.19.8.tar.gz", hash = "sha256:7442d182f2c95881aeb4bafc0a0d01df4ec57e6f39ac088d6f93d5a9a25e6e95", size = 2341479 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/b0/854943366b7712903746eed3a7b42e0a44053810f636ed796b2b5e8cea06/omero_py-5.20.0-py3-none-any.whl", hash = "sha256:2f71cba57d6b1d10d5b880121182210330ffae3987bbb7f6a95acdddd1fcc92d", size = 2781870 },
+    { url = "https://files.pythonhosted.org/packages/07/81/bf57ffe284489ac7c42232a7503f51563eaaa7771803e3b2443679f7afab/omero_py-5.19.8-py3-none-any.whl", hash = "sha256:c62ece99db7c5b54c6d8fe912f0338a01d939a0a7b988d46ffa6c311428a1755", size = 2781949 },
 ]
 
 [[package]]
