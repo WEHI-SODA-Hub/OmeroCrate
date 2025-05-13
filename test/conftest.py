@@ -6,6 +6,9 @@ from omero.gateway import BlitzGateway, ImageWrapper, DatasetWrapper
 import os
 import dotenv
 
+@pytest.fixture
+def abstract_crate() -> Path:
+    return Path(__file__).parent / "demo_crate"
 
 @pytest.fixture
 def ca_imaging() -> Path:

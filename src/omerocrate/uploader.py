@@ -1,20 +1,22 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Literal, cast
+from time import sleep
+from typing import Any, Iterable, Literal, cast, AsyncIterable
 from rdflib import Graph, URIRef
 from rdflib.query import ResultRow
 from rdflib.term import Identifier
 from functools import cached_property
-from omero import model, gateway
-import yaml
+from omero import model, gateway, grid, cmd
+from omero.model import enums
+from omero.rtypes import rstring, rbool
 from urllib.parse import urlparse
-import subprocess
+import asyncio
+from pydantic import BaseModel
 
 Namespaces = dict[str, URIRef]
 Variables = dict[str, Identifier]
 
-@dataclass
-class OmeroUploader:
+class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
     """
     Class that handles the conversion between RO-Crate metadata and OMERO objects.
     Users are encouraged to subclass this and override any of the public methods to customize the behavior.
@@ -38,7 +40,9 @@ class OmeroUploader:
         """
         return {
             "schema": URIRef("http://schema.org/"),
-            "crate": URIRef(f"{self.crate.as_uri()}/")
+            "crate": URIRef(f"{self.crate.as_uri()}/"),
+            "omerocrate": URIRef("https://w3id.org/WEHI-SODA-Hub/omerocrate/"),
+            "ome": URIRef("http://www.openmicroscopy.org/Schemas/OME/2016-06/"),
         }
 
     @cached_property
@@ -92,11 +96,27 @@ class OmeroUploader:
             }
         """)
         return result['dataset_id']
+
+    def find_images(self) -> Iterable[tuple[Identifier, Path]]:
+        """
+        Finds images that should be uploaded to OMERO.
+        Can be overridden to customize the image selection, although this typically isn't needed.
+        """
+        for result in self.select_many("""
+            SELECT ?file_path
+            WHERE {
+                ?file_path a schema:MediaObject ;
+                    omerocrate:upload true ;
+            }
+        """):
+            file_path = result['file_path']
+            yield file_path, Path(urlparse(file_path).path)
     
     def make_dataset(self) -> gateway.DatasetWrapper:
         """
-        Creates the OMERO dataset that correspons to this crate.
+        Creates the OMERO dataset wrapper that corresponds to this crate.
         Override to customize the dataset creation.
+        This method should not actually save the dataset!
         """
         dataset = gateway.DatasetWrapper(self.conn, model.DatasetI())
 
@@ -111,9 +131,24 @@ class OmeroUploader:
         dataset.setName(result['name'])
         dataset.setDescription(result['description'])
         dataset.save()
-        # See https://github.com/ome/omero-py/issues/451
-        dataset._oid = dataset._obj.id.val
         return dataset
+
+    async def upload_images(self, image_paths: list[Path], dataset: gateway.DatasetWrapper, **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
+        """
+        Queries the metadata crate for images and uploads them to OMERO.
+        Ideally minimal or no metadata should be set here.
+        Images that get yielded should already be saved to the database.
+
+        Params:
+            image_paths: List of paths to the images to be uploaded.
+            dataset: The OMERO dataset to which the images should be added.
+        """
+        # Note: Metadata is not set here because we want to allow `process_image()` to be independent of the upload method.
+
+        # Hack to make this method an async generator
+        if False:
+            yield
+        raise NotImplementedError("upload_images() must be implemented in a subclass")
 
     def connect(self):
         """
@@ -124,65 +159,8 @@ class OmeroUploader:
             if not result:
                 raise ValueError(f"Could not connect to OMERO: {self.conn.getLastError()}")
 
-    def upload_images(self, image_paths: Iterable[Path], dataset: gateway.DatasetWrapper) -> Iterable[gateway.ImageWrapper]:
-        """
-        Uploads a set of images to OMERO.
-        You could override this to use a different method of importing images.
-
-        Params:
-            image_paths: Paths to image files to upload
-            dataset: OMERO dataset to add the images to
-
-        Returns: Wrapped OMERO image object
-        """
-
-        if self.conn.host is None or self.conn.port is None:
-            raise ValueError("OMERO connection not initialized")
-
-        # Running import via CLI is very ugly, but using the Python API doesn't let us capture the output
-        result = subprocess.run([
-            "omero",
-            "import",
-            "-d", str(dataset.getId()),
-            "--server", self.conn.host,
-            "--port", self.conn.port,
-            "--key", self.conn._getSessionId(),
-            "--transfer", self.transfer_type,
-            *image_paths,
-            "--output",
-            "yaml"
-        ], stdout=subprocess.PIPE, check=True)
-        for image in yaml.safe_load_all(result.stdout):
-            yield cast(gateway.ImageWrapper, self.conn.getObject("Image", image[0]["Image"][0]))
-
     def add_image_to_dataset(self, dataset: gateway.DatasetWrapper, image: gateway.ImageWrapper) -> None:
         dataset._linkObject(image, "DatasetImageLinkI")
-
-    image_query = """
-        SELECT ?file_path
-        WHERE {
-            ?file_path a schema:MediaObject ;
-            FILTER (STRAFTER(STR(?file_path), ".") IN ("jpg", "jpeg", "png", "tiff", "tif", "bmp", "gif"))
-        }
-    """
-    """
-    Query for selecting images and their metadata from the crate. Override this to customize the selection.
-    For example, to select only images whose MIME type starts with "image/", you can use:
-    ```sparql
-        WHERE {
-            ?file_path a schema:MediaObject ;
-            schema:encodingFormat ?img_format .
-            FILTER STRSTARTS(?img_format, "image/")
-        }
-        ```
-    """
-
-    def process_image(self, image: gateway.ImageWrapper, result: ResultRow, dataset: gateway.DatasetWrapper) -> None:
-        """
-        Handles the processing of a single image extracted from the crate.
-        By default, this does nothing.
-        Override this to e.g. add additional metadata to the image using the `image` wrapper.
-        """
 
     def path_from_image_result(self, result: ResultRow) -> Path:
         """
@@ -190,23 +168,90 @@ class OmeroUploader:
         """
         return Path(urlparse(result['file_path']).path)
 
-    def process_images(self, dataset: gateway.DatasetWrapper):
+    def process_image(self, uri: URIRef, image: gateway.ImageWrapper) -> None:
         """
-        Runs the image selection query and processes each result.
-        Typically you don't need to override this method: either `process_image` or `image_query` should be enough.
+        Adds metadata to the image object from the crate.
+        Can be overridden to add custom metadata.
         """
-        results = list(self.select_many(self.image_query))
-        image_paths = [self.path_from_image_result(result) for result in results]
-        wrappers = list(self.upload_images(image_paths, dataset=dataset))
-        for image, result in zip(wrappers, results):
-            self.process_image(image, result, dataset)
+        result = self.select_one("""
+            SELECT *
+            WHERE {
+                OPTIONAL {
+                    ?file_path schema:name ?name .
+                }
+                OPTIONAL {
+                    ?file_path schema:description ?description .
+                }
+            }
+        """, variables={"file_path": uri})
+        if (description := result.description) is not None:
+            image.setDescription(str(description))
+        if (name := result.name) is not None:
+            image.setName(str(name))
 
-    def execute(self) -> gateway.DatasetWrapper:
+        image.save()
+        
+    async def execute(self) -> gateway.DatasetWrapper:
         """
         Runs the entire processing workflow.
         Typically you don't need to override this method.
         """
         self.connect()
+        img_uris: list[URIRef]
+        img_paths: list[Path]
         dataset = self.make_dataset()
-        self.process_images(dataset)
+        img_uris, img_paths = list(zip(*self.find_images()))
+        img_wrappers = [img async for img in self.upload_images(img_paths, dataset)]
+        for wrapper, uri in zip(img_wrappers, img_uris):
+            self.process_image(uri, wrapper)
         return dataset
+
+class ApiUploader(OmeroUploader):
+    """
+    Subclass of OmeroUploader that uses the OMERO API to upload images.
+    """
+    async def upload_images(self, image_paths: list[Path], dataset: gateway.DatasetWrapper, *, chunk_size: int = 4096, **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
+        handles: list[cmd.HandlePrx] = []
+        client = self.conn.c
+        repo = client.getManagedRepository()
+        algorithm = model.ChecksumAlgorithmI()
+        algorithm.setValue(rstring(enums.ChecksumAlgorithmSHA1160))
+        for path in image_paths:
+            # Fileset, entry and upload entities are required for uploading
+            fileset = model.FilesetI()
+            entry = model.FilesetEntryI()
+            entry.setClientPath(rstring(path))
+            fileset.addFilesetEntry(entry)
+            upload = model.UploadJobI()
+            fileset.linkJob(upload)
+
+            importer = repo.importFileset(
+                fileset,
+                grid.ImportSettings(
+                    checksumAlgorithm=algorithm,
+                    doThumbnails=rbool(True),
+                    noStatsInfo=rbool(False)
+                )
+            )
+            upload_file = importer.getUploader(0)
+            offset = 0
+            with open(path, "rb") as f:
+                while chunk := f.read(chunk_size):
+                    upload_file.write(chunk, offset, len(chunk))
+                    offset += len(chunk)
+            upload_file.close()
+            handles.append(importer.verifyUpload([client.sha1(path)]))
+
+        # Wait for the upload to finish
+        while handles:
+            await asyncio.sleep(0.1)
+            for handle in handles:
+                response = handle.getResponse()
+                if response is not None:
+                    handles.remove(handle)
+                    pixels: model.PixelsI
+                    for pixels in response.pixels:
+                        wrapper = gateway.ImageWrapper(conn=self.conn, obj=pixels.getImage())
+                        # Add the image to the dataset
+                        dataset._linkObject(wrapper, "DatasetImageLinkI")
+                        yield wrapper
