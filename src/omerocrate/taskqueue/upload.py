@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from typing import AsyncIterable, Any, Iterable, Optional
+from typing import AsyncIterable, Any, Iterable
 from omero import gateway, model
 import httpx
 import os
@@ -85,7 +85,7 @@ class TaskqueueUploader(OmeroUploader):
         errors = list(self.error_from_result(result))
         if len(errors) > 0:
             error_messages = "\n".join(errors)
-            raise Exception(f"Upload failed with\n: {error_messages}. Full JSON\n: {result.model_dump_json(indent=4)}")
+            raise Exception(f"Upload failed: {error_messages}\nFull JSON\n: {result.model_dump_json(indent=4)}")
         for link in project.getChildLinks():
             if isinstance(link._obj, model.ProjectDatasetLinkI):
                 # Remove the link to the dataset
@@ -97,13 +97,7 @@ class TaskqueueUploader(OmeroUploader):
                 for result_dataset in project.dataset:
                     for image in result_dataset.image:
                         if image.object_id is not None:
-                            x = gateway.ImageWrapper(conn=self.conn, obj=model.ImageI(image.object_id))
-                            # dataset._linkObject(x, "DatasetImageLinkI")
-                            # Unlink the image from the dataset
-                            # for parent in x.getParentLinks():
-                            #     if isinstance(parent._obj, model.DatasetImageLinkI):
-                            #         self.conn.deleteObject(parent._obj)
-                            yield x
+                            yield self.conn.getObject("Image", image.object_id)
 
     def error_from_result(self, result: upload_models.UploadResultSet) -> Iterable[str]:
         """
