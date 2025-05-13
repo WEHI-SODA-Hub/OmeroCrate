@@ -52,7 +52,7 @@ class ImageRequest(TaskQueueBase):
     Fields needed to upload an image to OMERO
     """
     name: Annotated[str, Field(description="Image name")]
-    description: Annotated[str, Field(description="Image description")]
+    description: Annotated[Optional[str], Field(description="Image description")] = None
     file_path: Annotated[str, Field(
         description="Path to the image file on disk",
         validation_alias=AliasChoices("filePath", "file_path"),
@@ -74,7 +74,7 @@ class DatasetFields(TaskQueueBase):
     """
     name: Annotated[Optional[str], Field(description="Dataset name")] = None
     object_id: ObjectId = None
-    description: Annotated[str, Field(description="Dataset description")]
+    description: Annotated[Optional[str], Field(description="Dataset description")] = None
     key_values: list[KeyValue] = Field(
         default_factory=list,
         description="List of key-value pairs to be added to this dataset",

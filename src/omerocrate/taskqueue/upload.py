@@ -50,6 +50,8 @@ class TaskqueueUploader(OmeroUploader):
         return (self.username, self.password)
 
     async def upload_images(self, image_paths: list[Path], dataset: gateway.DatasetWrapper, **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
+        # We create a dummy project, because `gs-taskqueue` requires one. 
+        # This makes it easy delete it afterwards
         project = gateway.ProjectWrapper(self.conn, model.ProjectI())
         project.setName(str(uuid4()))
         project.save()
@@ -57,16 +59,11 @@ class TaskqueueUploader(OmeroUploader):
 
         req = upload_models.UploadRequest(
             project=[upload_models.ProjectRequest(
-                # name=str(uuid4()),
                 object_id=project.getId(),
-                description=str(uuid4()),
                 dataset=[upload_models.DatasetRequest(
-                    # name=str(uuid4()),
                     object_id=dataset.getId(),
-                    description=str(uuid4()),
                     image=[upload_models.ImageRequest(
                         name=str(uuid4()),
-                        description=str(uuid4()),
                         file_path=str(path)
                     ) for path in image_paths]
                 )]
@@ -76,6 +73,7 @@ class TaskqueueUploader(OmeroUploader):
         )
 
         task_id = (await self.upload_to_omero(req)).task_id
+        # Loop until the task is finished
         while True:
             await asyncio.sleep(1)
             status = await self.upload_status(task_id)
@@ -86,12 +84,14 @@ class TaskqueueUploader(OmeroUploader):
         if len(errors) > 0:
             error_messages = "\n".join(errors)
             raise Exception(f"Upload failed: {error_messages}\nFull JSON\n: {result.model_dump_json(indent=4)}")
+
+        # Unlink and delete the project, since we never wanted it
         for link in project.getChildLinks():
             if isinstance(link._obj, model.ProjectDatasetLinkI):
-                # Remove the link to the dataset
                 self.conn.deleteObject(link._obj)
-        # Remove the project
         self.conn.deleteObject(project._obj)
+
+        # Get in-memory wrappers for each resulting image
         for upload in result.result:
             for project in upload.project:
                 for result_dataset in project.dataset:
@@ -129,7 +129,10 @@ class TaskqueueUploader(OmeroUploader):
         response.raise_for_status()
         return upload_models.UploadReponse.model_validate(response.json())
 
-    async def upload_status(self, task_id: str):
+    async def upload_status(self, task_id: str) -> upload_models.UploadStatus:
+        """
+        Checks the status of an upload task.
+        """
         URL_CHECK_INFO = f"{self.host}/flower/api/task/info/{task_id}" 
 
         # Check the task status
@@ -141,7 +144,10 @@ class TaskqueueUploader(OmeroUploader):
         response.raise_for_status()
         return upload_models.UploadStatus.model_validate(response.json())
         
-    async def upload_result(self, task_id: str):
+    async def upload_result(self, task_id: str) -> upload_models.UploadResultSet:
+        """
+        Gets the result of a completed upload task.
+        """
         response = await self.client.get(
             f"{self.host}/flower/api/task/result/{task_id}",
             auth=self.http_auth
