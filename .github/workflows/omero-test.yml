@@ -16,14 +16,12 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Set up Python with uv
-      uses: astral-sh/setup-uv-action@v1
+      uses: astral-sh/setup-uv@v6
       with:
         python-version: "3.9"
     
     - name: Install dependencies
-      run: |
-        uv pip install -e ".[dev]"
-        uv pip install pytest pytest-cov
+      run: uv sync --all-extras
     
     - name: Clone OMERO test infrastructure
       uses: actions/checkout@v4
