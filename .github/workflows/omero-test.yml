@@ -33,6 +33,9 @@ jobs:
         path: .omero
     
     - name: Start OMERO services
+      env: 
+        # Map the OMERO server port to the same port on the host
+        OMERO_SERVER_PORT: '4064:
       run: .omero/compose up -d
 
     - name: Run tests
