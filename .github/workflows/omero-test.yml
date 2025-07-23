@@ -33,7 +33,6 @@ jobs:
         path: .omero
     
     - name: Start OMERO services
-      working-directory: omero-test-infra
       run: .omero/compose up
 
     - name: Run tests
@@ -45,5 +44,4 @@ jobs:
         OMERO_PORT: 4064
     
     - name: Stop OMERO services
-      working-directory: omero-test-infra
       run: .omero/compose down
