@@ -1,6 +1,6 @@
 {
     "@context": [
-        "https://w3id.org/ro/crate/1.2-DRAFT/context",
+        "https://w3id.org/ro/crate/1.2/context",
         {
             "upload": "https://w3id.org/WEHI-SODA-Hub/omerocrate/upload",
             "segmentationFor": "https://w3id.org/WEHI-SODA-Hub/omerocrate/segmentationFor",

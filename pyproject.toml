@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Michael Milton", email = "michael.r.milton@gmail.com" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=24.1.0",
     "httpx>=0.28.1",
@@ -14,6 +14,7 @@ dependencies = [
     "omero-py>=5.19.7",
     "pydantic>=2.11.3",
     "pyyaml>=6.0.2",
+    "rdfcrate",
     "rdflib>=7.1.1",
     "typer>=0.15.2",
 ]
@@ -36,9 +37,13 @@ dev = [
     "pytest>=8.3.5",
     "mkdocs-typer>=0.0.3",
     "pytest-asyncio>=0.26.0",
+    "pytest-recording>=0.13.4",
 ]
 
 
 [tool.pytest.ini_options]
 log_cli = true
 log_cli_level = "DEBUG"
+
+[tool.uv.sources]
+rdfcrate = { git = "https://github.com/WEHI-SODA-Hub/RdfCrate" }

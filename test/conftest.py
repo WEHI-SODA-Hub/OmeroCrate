@@ -6,6 +6,13 @@ from omero.gateway import BlitzGateway, ImageWrapper, DatasetWrapper
 import os
 import dotenv
 
+@pytest.fixture(scope="module")
+def vcr_config():
+    return {
+        "filter_headers": ["authorization"],
+        # "custom_patches": (where_the_custom_https_connection_lives, 'CustomHTTPSConnection', VCRHTTPSConnection)
+    }
+
 @pytest.fixture
 def abstract_crate() -> Path:
     return Path(__file__).parent / "demo_crate"
