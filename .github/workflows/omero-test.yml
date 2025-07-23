@@ -30,7 +30,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: ome/omero-test-infra
-        path: omero-test-infra
+        path: .omero
     
     - name: Start OMERO services
       working-directory: omero-test-infra
