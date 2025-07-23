@@ -1,0 +1,48 @@
+name: Test with OMERO
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python with uv
+      uses: astral-sh/setup-uv-action@v1
+      with:
+        python-version: "3.9"
+    
+    - name: Install dependencies
+      run: |
+        uv pip install -e ".[dev]"
+        uv pip install pytest pytest-cov
+    
+    - name: Clone OMERO test infrastructure
+      uses: actions/checkout@v4
+      with:
+        repository: ome/omero-test-infra
+        path: omero-test-infra
+    
+    - name: Start OMERO services
+      working-directory: omero-test-infra
+      run: .omero/compose up
+
+    - name: Run tests
+      run: pytest
+      env: 
+        OMERO_USER: root
+        OMERO_PASSWORD: omero
+        OMERO_HOST: localhost
+        OMERO_PORT: 4064
+    
+    - name: Stop OMERO services
+      working-directory: omero-test-infra
+      run: .omero/compose down
