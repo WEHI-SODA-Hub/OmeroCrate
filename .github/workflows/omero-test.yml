@@ -36,7 +36,7 @@ jobs:
       run: .omero/compose up -d
 
     - name: Run tests
-      run: pytest
+      run: uv run pytest
       env: 
         OMERO_USER: root
         OMERO_PASSWORD: omero
