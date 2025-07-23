@@ -16,6 +16,7 @@ async def test_upload_default(abstract_crate: Path, connection: BlitzGateway):
     dataset = await uploader.execute()
     assert dataset.name == "Abstract art"
     assert dataset.countChildren() == 1
+    assert dataset.getOwnerFullName() == "Abstract art"
     for image in dataset.listChildren():
         assert "Color Study" in image.name
     delete_dataset(dataset)
