@@ -112,11 +112,10 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
             file_path = result['file_path']
             yield file_path, Path(urlparse(file_path).path)
     
-    def make_dataset(self) -> gateway.DatasetWrapper:
+    def make_dataset(self, group: gateway.ExperimenterGroupWrapper) -> gateway.DatasetWrapper:
         """
         Creates the OMERO dataset wrapper that corresponds to this crate.
         Override to customize the dataset creation.
-        This method should not actually save the dataset!
         """
         dataset = gateway.DatasetWrapper(self.conn, model.DatasetI())
 
@@ -128,6 +127,9 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
             }
         """, variables={"root": self.root_dataset_id})
 
+        # Set the group name for the session, so that the dataset is created in the correct group
+        self.conn.setGroupNameForSession(str(group.getName()))
+        
         dataset.setName(result['name'])
         dataset.setDescription(result['description'])
         dataset.save()
@@ -190,6 +192,40 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
             image.setName(str(name))
 
         image.save()
+
+    def get_group_name(self) -> str:
+        """
+        Get the name of the experimenter group from the crate metadata.
+        If missing, the dataset name will be used as the group name.
+
+        This probably doesn't need to be overridden.
+        """
+        try:
+            result = self.select_one("""
+                SELECT ?group_name
+                WHERE {
+                    ?root omerocrate:experimenterGroup ?group_name .
+                }
+            """, variables={"root": self.root_dataset_id})
+            return str(result['group_name'])
+        except ValueError:
+            # If the group name is not specified, use the dataset name
+            result = self.select_one("""
+                SELECT ?name
+                WHERE {
+                    ?root schema:name ?name .
+                }
+            """, variables={"root": self.root_dataset_id})
+            return str(result['name'])
+
+    async def make_group(self) -> gateway.ExperimenterGroupWrapper:
+        """
+        Creates the OMERO experimenter group that corresponds to this crate.
+        """
+        group = gateway.ExperimenterGroupWrapper(self.conn, model.ExperimenterGroupI())
+        group.setName(self.get_group_name())
+        group.save()
+        return group
         
     async def execute(self) -> gateway.DatasetWrapper:
         """
@@ -199,7 +235,8 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         self.connect()
         img_uris: list[URIRef]
         img_paths: list[Path]
-        dataset = self.make_dataset()
+        group = await self.make_group()
+        dataset = self.make_dataset(group)
         img_uris, img_paths = list(zip(*self.find_images()))
         img_wrappers = [img async for img in self.upload_images(img_paths, dataset)]
         for wrapper, uri in zip(img_wrappers, img_uris):

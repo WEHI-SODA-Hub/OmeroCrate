@@ -1,3 +1,6 @@
+"""
+Models for parsing and serializing data structures used in `gs-taskqueue`
+"""
 from __future__ import annotations
 from datetime import datetime
 from typing import List, Any, Annotated, Literal, Optional, Union
@@ -5,7 +8,7 @@ from pydantic import BaseModel, Field, BeforeValidator, ConfigDict, AliasChoices
 
 def parse_object_id(value: str | int | list | None) -> int | None:
     """
-    Parse the object ID from a string.
+    Parse an OMERO object ID
     """
     if isinstance(value, list):
         if len(value) > 1:
@@ -28,8 +31,9 @@ Error = Annotated[Optional[str], Field(
     default=None
 )]
 OmeroId = Annotated[Optional[int], Field(
-    description="OMERO ID of the dataset"
+    description="Some OMERO ID"
 ), BeforeValidator(parse_object_id)]
+#: An OMERO ID whose field name is objectId
 ObjectId = Annotated[OmeroId, Field(
     validation_alias=AliasChoices("objectId", "object_id"),
     alias="objectId"
@@ -48,7 +52,7 @@ class ImageRequest(TaskQueueBase):
     Fields needed to upload an image to OMERO
     """
     name: Annotated[str, Field(description="Image name")]
-    description: Annotated[str, Field(description="Image description")]
+    description: Annotated[Optional[str], Field(description="Image description")] = None
     file_path: Annotated[str, Field(
         description="Path to the image file on disk",
         validation_alias=AliasChoices("filePath", "file_path"),
@@ -64,14 +68,13 @@ class ImageRequest(TaskQueueBase):
         description="List of tags associated with this image"
     )
 
-
 class DatasetFields(TaskQueueBase):
     """
     Common fields for Dataset and DatasetRequest
     """
     name: Annotated[Optional[str], Field(description="Dataset name")] = None
     object_id: ObjectId = None
-    description: Annotated[str, Field(description="Dataset description")]
+    description: Annotated[Optional[str], Field(description="Dataset description")] = None
     key_values: list[KeyValue] = Field(
         default_factory=list,
         description="List of key-value pairs to be added to this dataset",
@@ -85,13 +88,18 @@ class DatasetFields(TaskQueueBase):
 
 
 class DatasetRequest(DatasetFields):
+    """
+    Model for creating a dataset
+    """
     image: list[ImageRequest] = Field(
         default_factory=list,
         description="List of images in this dataset"
     )
 
-
 class ProjectFields(TaskQueueBase):
+    """
+    Common fields relating to an OMERO Project
+    """
     name: Annotated[Optional[str], Field(description="Project name")] = None
     object_id: ObjectId = None
     description: Annotated[Optional[str], Field(description="Project description")] = None
@@ -116,7 +124,7 @@ class ProjectRequest(ProjectFields):
 
 class UploadFields(TaskQueueBase):
     """
-    Common fields for UploadRequest and `UploadResult`
+    Common fields for an OMERO upload
     """
     group: Annotated[str, Field(
         description="The OMERO group name"
@@ -158,6 +166,9 @@ TimeStamp = Annotated[Optional[datetime], BeforeValidator(
 ), Field(description="Timestamp of an event")]
 
 class UploadStatus(TaskQueueBase):
+    """
+    Response schema from the `/api/task/info/{task_id}` endpoint
+    """
     uuid: str
     name: str
     state: State
@@ -191,6 +202,9 @@ class UploadStatus(TaskQueueBase):
     children: list
 
 class ImportSummary(TaskQueueBase):
+    """
+    Summary of an image import
+    """
     number_of_files: str
     number_of_omero_images: str
     number_of_errors: str
@@ -226,21 +240,33 @@ class ImageResponse(ImageRequest):
     error: Error = None
 
 class DatasetResult(DatasetFields):
+    """
+    Data returned by the task queue after the Dataset has been imported
+    """
     image: list[ImageResponse]
     import_status: ImportStatus = None
     error: Error = None
 
 class ProjectResult(ProjectFields):
+    """
+    Data returned by the task queue after the Project has been imported
+    """
     dataset: List[DatasetResult]
     import_status: ImportStatus = None
     error: Error = None
 
 class UploadResult(UploadFields):
+    """
+    Data returned by the task queue after the Upload object has been imported
+    """
     project: List[ProjectResult]
     import_status: ImportStatus = None
     error: Error = None
 
 class UploadResultSet(TaskQueueBase):
+    """
+    Response schema from the `/api/task/result/{task_id}` endpoint
+    """
     task_id: Annotated[str, Field(alias='task-id')]
     state: State
     result: List[UploadResult]
