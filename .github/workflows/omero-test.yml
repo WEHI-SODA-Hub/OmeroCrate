@@ -33,7 +33,7 @@ jobs:
         path: .omero
     
     - name: Start OMERO services
-      run: .omero/compose up
+      run: .omero/compose up -d
 
     - name: Run tests
       run: pytest
