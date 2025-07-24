@@ -33,10 +33,11 @@ jobs:
         path: .omero
     
     - name: Start OMERO services
-      env: 
-        # Map the OMERO server port to the same port on the host
-        OMERO_SERVER_TCP: '4064:'
-      run: .omero/compose up -d
+      # Map the OMERO server port to the same port on the host
+      # Setting in env doesn't seem to work, see https://github.com/ome/omero-test-infra/issues/77
+      run: |
+        echo 'OMERO_SERVER_TCP=4064:' >> .omero/.env
+        .omero/compose up -d
 
     - name: Run tests
       run: uv run pytest
