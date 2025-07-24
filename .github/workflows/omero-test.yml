@@ -9,6 +9,12 @@ on:
 
 jobs:
   test:
+    env: 
+      OMERO_USER: root
+      OMERO_PASSWORD: omero
+      OMERO_HOST: localhost
+      OMERO_PORT: 4064
+
     runs-on: ubuntu-latest
     
     steps:
@@ -39,13 +45,11 @@ jobs:
         echo 'OMERO_SERVER_TCP=4064:' >> .omero/.env
         .omero/compose up -d
 
+    - name: Wait for OMERO server to be ready
+      run: .omero/wait-on-login
+
     - name: Run tests
       run: uv run pytest
-      env: 
-        OMERO_USER: root
-        OMERO_PASSWORD: omero
-        OMERO_HOST: localhost
-        OMERO_PORT: 4064
     
     - name: Stop OMERO services
       run: .omero/compose down
