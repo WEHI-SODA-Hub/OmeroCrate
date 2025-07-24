@@ -46,7 +46,7 @@ jobs:
         .omero/compose up -d
 
     - name: Wait for OMERO server to be ready
-      run: .omero/wait-on-login
+      run: uv run .omero/wait-on-login
 
     - name: Run tests
       run: uv run pytest
