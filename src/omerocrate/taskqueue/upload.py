@@ -50,6 +50,8 @@ class TaskqueueUploader(OmeroUploader):
         return (self.username, self.password)
 
     async def upload_images(self, image_paths: list[Path], dataset: gateway.DatasetWrapper, **kwargs: Any) -> AsyncIterable[gateway.ImageWrapper]:
+        # We create the project beforehand so we can easily clean it up
+        # We don't actually need a project object
         project = gateway.ProjectWrapper(self.conn, model.ProjectI())
         project.setName(str(uuid4()))
         project.save()
@@ -57,11 +59,9 @@ class TaskqueueUploader(OmeroUploader):
 
         req = upload_models.UploadRequest(
             project=[upload_models.ProjectRequest(
-                # name=str(uuid4()),
                 object_id=project.getId(),
                 description=str(uuid4()),
                 dataset=[upload_models.DatasetRequest(
-                    # name=str(uuid4()),
                     object_id=dataset.getId(),
                     description=str(uuid4()),
                     image=[upload_models.ImageRequest(
@@ -96,14 +96,8 @@ class TaskqueueUploader(OmeroUploader):
             for project in upload.project:
                 for result_dataset in project.dataset:
                     for image in result_dataset.image:
-                        if image.object_id is not None:
-                            x = gateway.ImageWrapper(conn=self.conn, obj=model.ImageI(image.object_id))
-                            # dataset._linkObject(x, "DatasetImageLinkI")
-                            # Unlink the image from the dataset
-                            # for parent in x.getParentLinks():
-                            #     if isinstance(parent._obj, model.DatasetImageLinkI):
-                            #         self.conn.deleteObject(parent._obj)
-                            yield x
+                       if image.object_id is not None:
+                            yield self.conn.getObject("Image", image.object_id)
 
     def error_from_result(self, result: upload_models.UploadResultSet) -> Iterable[str]:
         """
