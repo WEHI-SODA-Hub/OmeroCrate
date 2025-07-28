@@ -2,8 +2,7 @@ from pathlib import Path
 from git import Repo
 import pytest
 from omerocrate.gateway import from_env
-from omero.gateway import BlitzGateway, ImageWrapper, DatasetWrapper
-import os
+from omero.gateway import BlitzGateway
 import dotenv
 
 @pytest.fixture
