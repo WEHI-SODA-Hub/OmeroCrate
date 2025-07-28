@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from time import sleep
 from typing import Any, Iterable, Literal, cast, AsyncIterable
@@ -12,6 +13,8 @@ from omero.rtypes import rstring, rbool
 from urllib.parse import urlparse
 import asyncio
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 Namespaces = dict[str, URIRef]
 Variables = dict[str, Identifier]
@@ -222,7 +225,16 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         """
         Creates the OMERO experimenter group that corresponds to this crate.
         """
+        group_name = self.get_group_name()
+
+        # Check if the group already exists
+        for group in self.conn.listGroups():
+            if group_name == group.getName():
+                logger.warning(f"Group {group_name} already exists, using it")
+                return group
+
         group = gateway.ExperimenterGroupWrapper(self.conn, model.ExperimenterGroupI())
+        group._obj.setLdap(rbool(False))
         group.setName(self.get_group_name())
         group.save()
         return group
