@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 from util import check_art_dataset
 from omerocrate.cli import app
 import pytest
-    connection.setGroupNameForSession("Abstract art")
+
 @pytest.mark.parametrize("uploader", ["omerocrate.ApiUploader", "omerocrate.TaskqueueUploader"])
 def test_cli(connection: BlitzGateway, abstract_crate: Path, uploader: str):
     result = CliRunner(mix_stderr=False).invoke(app, [str(abstract_crate), "--uploader", uploader])
