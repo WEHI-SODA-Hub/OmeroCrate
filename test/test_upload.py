@@ -1,39 +1,23 @@
 from pathlib import Path
-from dotenv import load_dotenv
 import pytest
 from omerocrate.uploader import ApiUploader, OmeroUploader
 from omerocrate.taskqueue.upload import TaskqueueUploader
 from omero.gateway import BlitzGateway
-import os
+from util import check_art_dataset, requires_flower
 
-from omerocrate.utils import delete_dataset
 
-async def _test_uploader(uploader: OmeroUploader):
-    load_dotenv()
+@pytest.mark.parametrize("Uploader", [
+    ApiUploader,
+    pytest.param(TaskqueueUploader, marks=requires_flower)
+])
+@pytest.mark.asyncio
+async def test_upload_api(abstract_crate: Path, connection: BlitzGateway, Uploader: type[OmeroUploader]):
+    uploader = Uploader(
+        conn=connection,
+        crate=abstract_crate
+    )
     dataset = await uploader.execute()
-    assert dataset.name == "Abstract art"
-    assert dataset.countChildren() == 1
-    assert dataset.getDetails().getGroup().getName() == "Abstract art", "The dataset group should be the crate name"
-    for image in dataset.listChildren():
-        assert "Color Study" in image.name
-    delete_dataset(dataset)
-
-
-@pytest.mark.asyncio
-async def test_upload_default(abstract_crate: Path, connection: BlitzGateway):
-    uploader = ApiUploader(
-        conn=connection,
-        crate=abstract_crate
-    )
-    await _test_uploader(uploader)
+    check_art_dataset(dataset)
     # Test twice to ensure that the tests work with an existing group
-    await _test_uploader(uploader)
-
-@pytest.mark.skipif(not os.environ.get("FLOWER_HOST"), reason="OMERO taskqueue not available")
-@pytest.mark.asyncio
-async def test_upload_queue(abstract_crate: Path, connection: BlitzGateway):
-    uploader = TaskqueueUploader(
-        conn=connection,
-        crate=abstract_crate
-    )
-    await _test_uploader(uploader)
+    dataset = await uploader.execute()
+    check_art_dataset(dataset)

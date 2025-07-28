@@ -28,3 +28,10 @@ def connection() -> BlitzGateway:
     conn = from_env()
     conn.connect()
     return conn
+
+@pytest.fixture(autouse=True)
+def load_env():
+    """
+    Load environment variables from .env file for testing.
+    """
+    dotenv.load_dotenv()
