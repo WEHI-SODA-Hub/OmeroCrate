@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 import asyncio
 from pydantic import BaseModel
 
+from omerocrate.utils import user_in_group
+
 logger = logging.getLogger(__name__)
 
 Namespaces = dict[str, URIRef]
@@ -131,8 +133,6 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         """, variables={"root": self.root_dataset_id})
 
         # Set the group name for the session, so that the dataset is created in the correct group
-        self.conn.setGroupNameForSession(str(group.getName()))
-        
         dataset.setName(result['name'])
         dataset.setDescription(result['description'])
         dataset.save()
@@ -227,16 +227,26 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         """
         group_name = self.get_group_name()
 
-        # Check if the group already exists
-        for group in self.conn.listGroups():
-            if group_name == group.getName():
-                logger.warning(f"Group {group_name} already exists, using it")
-                return group
+        group: gateway.ExperimenterGroupWrapper
+        admin_service = self.conn.getAdminService()
 
-        group = gateway.ExperimenterGroupWrapper(self.conn, model.ExperimenterGroupI())
-        group._obj.setLdap(rbool(False))
-        group.setName(self.get_group_name())
-        group.save()
+        for existing_group in self.conn.listGroups():
+            # If the group already exists, add the user to it
+            if group_name == existing_group.getName():
+                group = existing_group
+                if not user_in_group(self.conn.getUser(), group, admin_service):
+                    admin_service.addGroups(self.conn.getUser()._obj, [model.ExperimenterGroupI(group.getId(), False)])
+
+                logger.warning(f"Group {group_name} already exists, using it")
+                break
+        else:
+            group = gateway.ExperimenterGroupWrapper(self.conn, model.ExperimenterGroupI())
+            group = self.conn.createGroup(
+                name=group_name,
+                member_Ids=[self.conn.getUser().getId()],
+                ldap=False
+            )
+            
         return group
         
     async def execute(self) -> gateway.DatasetWrapper:
@@ -248,6 +258,9 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         img_uris: list[URIRef]
         img_paths: list[Path]
         group = await self.make_group()
+        # It seems like the best way to ensure all objects are created in the correct group
+        # is to set the group for the session
+        self.conn.setGroupForSession(group.getId())
         dataset = self.make_dataset(group)
         img_uris, img_paths = list(zip(*self.find_images()))
         img_wrappers = [img async for img in self.upload_images(img_paths, dataset)]

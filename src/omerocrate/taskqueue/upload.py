@@ -68,7 +68,8 @@ class TaskqueueUploader(OmeroUploader):
                     ) for path in image_paths]
                 )]
             )],
-            group="grp_omeplus",
+            # Upload into the same group as the dataset
+            group=dataset.getDetails().getGroup().getName(),
             import_user=os.environ["OMERO_USER"],
         )
 
