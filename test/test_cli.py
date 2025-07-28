@@ -1,7 +1,7 @@
 from pathlib import Path
 from omero.gateway import BlitzGateway
 from typer.testing import CliRunner
-from .util import check_art_dataset, requires_flower
+from util import check_art_dataset, requires_flower
 from omerocrate.cli import app
 import pytest
 
