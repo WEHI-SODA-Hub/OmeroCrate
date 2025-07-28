@@ -226,26 +226,23 @@ class OmeroUploader(BaseModel, arbitrary_types_allowed=True):
         Creates the OMERO experimenter group that corresponds to this crate.
         """
         group_name = self.get_group_name()
-
-        group: gateway.ExperimenterGroupWrapper
         admin_service = self.conn.getAdminService()
 
         for existing_group in self.conn.listGroups():
             # If the group already exists, add the user to it
             if group_name == existing_group.getName():
-                group = existing_group
-                if not user_in_group(self.conn.getUser(), group, admin_service):
-                    admin_service.addGroups(self.conn.getUser()._obj, [model.ExperimenterGroupI(group.getId(), False)])
+                if not user_in_group(self.conn.getUser(), existing_group, admin_service):
+                    admin_service.addGroups(self.conn.getUser()._obj, [model.ExperimenterGroupI(existing_group.getId(), False)])
 
                 logger.warning(f"Group {group_name} already exists, using it")
-                break
+                return existing_group
         else:
-            group = gateway.ExperimenterGroupWrapper(self.conn, model.ExperimenterGroupI())
-            group = self.conn.createGroup(
+            group_id = self.conn.createGroup(
                 name=group_name,
                 member_Ids=[self.conn.getUser().getId()],
                 ldap=False
             )
+            return self.conn.getObject("ExperimenterGroup", group_id)
             
         return group
         
