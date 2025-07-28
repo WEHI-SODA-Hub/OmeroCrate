@@ -8,7 +8,7 @@ import os
 
 from omerocrate.utils import delete_dataset
 
-async def test_uploader(uploader: OmeroUploader):
+async def _test_uploader(uploader: OmeroUploader):
     load_dotenv()
     dataset = await uploader.execute()
     assert dataset.name == "Abstract art"
@@ -25,7 +25,7 @@ async def test_upload_default(abstract_crate: Path, connection: BlitzGateway):
         conn=connection,
         crate=abstract_crate
     )
-    await test_uploader(uploader)
+    await _test_uploader(uploader)
 
 @pytest.mark.skipif(not os.environ.get("FLOWER_HOST"), reason="OMERO taskqueue not available")
 @pytest.mark.asyncio
@@ -34,4 +34,4 @@ async def test_upload_queue(abstract_crate: Path, connection: BlitzGateway):
         conn=connection,
         crate=abstract_crate
     )
-    await test_uploader(uploader)
+    await _test_uploader(uploader)
