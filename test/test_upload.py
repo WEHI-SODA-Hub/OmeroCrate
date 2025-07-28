@@ -3,7 +3,7 @@ import pytest
 from omerocrate.uploader import ApiUploader, OmeroUploader
 from omerocrate.taskqueue.upload import TaskqueueUploader
 from omero.gateway import BlitzGateway
-from test.util import check_art_dataset, requires_flower
+from .util import check_art_dataset, requires_flower
 
 
 @pytest.mark.parametrize("uploader", [
