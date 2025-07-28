@@ -26,6 +26,8 @@ async def test_upload_default(abstract_crate: Path, connection: BlitzGateway):
         crate=abstract_crate
     )
     await _test_uploader(uploader)
+    # Test twice to ensure that the tests work with an existing group
+    await _test_uploader(uploader)
 
 @pytest.mark.skipif(not os.environ.get("FLOWER_HOST"), reason="OMERO taskqueue not available")
 @pytest.mark.asyncio
